@@ -1,0 +1,31 @@
+{
+  "name": "coding-brain",
+  "version": "0.0.1",
+  "description": "A compiled brain for Claude Code & Cursor — memory that rewrites itself into current truth, verified against git, and measures its own hit rate. In development.",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "cursor",
+    "memory",
+    "brain",
+    "context",
+    "agent",
+    "compiled-memory"
+  ],
+  "bin": {
+    "jbrain": "./bin/jbrain.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jatingargiitk/coding-brain.git"
+  },
+  "author": "Jatin Garg",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18"
+  }
+}
