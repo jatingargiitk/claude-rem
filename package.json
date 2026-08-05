@@ -13,7 +13,7 @@
     "compiled-memory"
   ],
   "bin": {
-    "jbrain": "./bin/jbrain.js"
+    "coding-brain": "./bin/coding-brain.js"
   },
   "files": [
     "bin",
