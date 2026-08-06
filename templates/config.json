@@ -1,0 +1,10 @@
+{
+  "model": "claude-sonnet-5",
+  "harvestThresholdBytes": 25000,
+  "failureBackoffMinutes": 10,
+  "staleLockMinutes": 30,
+  "assistantCapChars": 2500,
+  "totalCapChars": 400000,
+  "liteStateSessions": 15,
+  "liteStateCapChars": 300000
+}
