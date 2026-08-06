@@ -1,0 +1,17 @@
+{
+  "name": "coding-brain",
+  "owner": {
+    "name": "Jatin Garg"
+  },
+  "metadata": {
+    "description": "coding-brain — a compiled brain for Claude Code & Cursor"
+  },
+  "plugins": [
+    {
+      "name": "coding-brain",
+      "version": "0.1.0",
+      "source": ".",
+      "description": "Compiled workspace memory: harvest every session into a current-truth STATE, verified against git, with its own hit-rate metrics"
+    }
+  ]
+}
