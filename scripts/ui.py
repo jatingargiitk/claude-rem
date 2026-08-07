@@ -107,7 +107,10 @@ def _age_label(mtime: float | None) -> str:
 
 
 def _receipt() -> str:
-    """Same receipt line the recall hooks inject into sessions."""
+    """Freshness line for the page — plain language, no internal vocabulary.
+
+    (The recall hooks keep their own agent-facing wording; this is display
+    copy only.)"""
     ts = 0
     try:
         ts = int((STATE_DIR / "last_success").read_text().strip())
@@ -122,17 +125,25 @@ def _receipt() -> str:
         else:
             freshness = f"{mins // 1440}d ago"
     else:
-        freshness = "not yet"
-    lastlearn = ""
+        freshness = "not yet — it learns as you work"
+    subject = ""
     try:
-        lastlearn = subprocess.check_output(
+        subject = subprocess.check_output(
             ["git", "-C", str(BRAIN), "log", "-1", "--format=%s"],
             text=True, timeout=5, stderr=subprocess.DEVNULL).strip()
     except Exception:
         pass
-    warn = " · WARNING: LAST HARVEST FAILED" if (STATE_DIR / "last_failure").exists() else ""
-    mid = f" · {lastlearn}" if lastlearn else ""
-    return f"🧠 brain: last harvest {freshness}{mid}{warn}"
+    if subject.startswith("harvest: "):
+        mid = f" · learned: {subject[9:]}"
+    elif subject.startswith("init: lite STATE"):
+        mid = " · learned: your starter briefing"
+    elif subject.startswith("baseline:"):
+        mid = ""
+    else:
+        mid = f" · learned: {subject}" if subject else ""
+    warn = " · WARNING: last update failed — see .coding-brain/.state/harvest.log" \
+        if (STATE_DIR / "last_failure").exists() else ""
+    return f"🧠 updated {freshness}{mid}{warn}"
 
 
 def _metrics_summary(days: int = 7) -> dict:
