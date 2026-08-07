@@ -105,7 +105,7 @@ if ! python3 "$SCRIPT_DIR/filter.py" "$TRANSCRIPT_PATH" "$FILTERED" "$ASSISTANT_
   exit 1
 fi
 
-PROMPT="You are the coding-brain harvester, a headless background agent. A coding-agent session (Claude Code or Cursor) in this workspace produced substantial work. Your job:
+PROMPT="You are the coding-brain harvester, a headless background agent. A coding-agent session (Claude Code, Cursor, or Codex) in this workspace produced substantial work. Your job:
 
 1. Read the instructions file $BRAIN_DIR/INSTRUCTIONS.md and follow it exactly.
 2. The session transcript has been PRE-CONDENSED to user messages, assistant text, and tool targets. Read it at: $FILTERED
@@ -172,6 +172,13 @@ if [ "$rc" -eq 0 ]; then
   fi
   short=$(echo "$CHANGED" | tr ' ' '\n' | sed 's|.*/||; s|\.md$||' | grep -v '^$' | head -4 | tr '\n' ',' | sed 's/,$//; s/,/, /g')
   notify "coding-brain" "Harvested: ${TITLE:-${STEM:0:8}} — updated: ${short:-nothing new}"
+  # Codex reads AGENTS.md natively (no injection hook): refresh the managed
+  # receipt block if the user enabled Codex support (markers present). Cheap,
+  # deterministic, no model call — and never creates the file uninvited.
+  if [ -f "$WORKSPACE_ROOT/AGENTS.md" ] && grep -q 'coding-brain:start' "$WORKSPACE_ROOT/AGENTS.md" 2>/dev/null; then
+    "$SCRIPT_DIR/agents-block.sh" "$WORKSPACE_ROOT" "$BRAIN_DIR" >> "$LOG_FILE" 2>&1 \
+      || echo "$(date '+%F %T') agents-block refresh failed" >> "$LOG_FILE"
+  fi
 else
   date +%s > "$STATE_DIR/last_failure"
   notify "coding-brain" "Harvest failed (exit $rc) — see .coding-brain/.state/harvest.log"
