@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>coding-brain</title>
+<style>
+  :root {
+    --bg: #f3efe6;
+    --bg-2: #ebe4d6;
+    --ink: #1c1914;
+    --muted: #6b6358;
+    --line: #d4cbb8;
+    --card: #faf7f0;
+    --good: #1f6b4a;
+    --good-bg: #dceee4;
+    --warn: #8a5a12;
+    --warn-bg: #f5e6c8;
+    --bad: #8b2e2e;
+    --bad-bg: #f3d9d6;
+    --accent: #245c8a;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.45; }
+  body { min-height: 100vh; }
+
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px;
+    margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid var(--line);
+  }
+  header.top h1 {
+    font-family: var(--serif); font-weight: 700; font-size: 1.85rem;
+    margin: 0; letter-spacing: -0.02em;
+  }
+  header.top .sub { color: var(--muted); font-size: 0.92rem; }
+  header.top .fresh { margin-left: auto; color: var(--muted); font-size: 0.85rem;
+    font-family: var(--mono); }
+
+  .receipt {
+    font-family: var(--mono); font-size: 0.85rem; background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
+    margin-bottom: 18px; overflow-x: auto; white-space: nowrap;
+  }
+
+  nav.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 22px; }
+  nav.tabs button {
+    appearance: none; border: 1px solid var(--line); background: var(--card);
+    color: var(--ink); padding: 7px 12px; border-radius: 6px; cursor: pointer;
+    font: inherit; font-weight: 500; font-size: 0.9rem;
+  }
+  nav.tabs button:hover { border-color: var(--ink); }
+  nav.tabs button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .metric {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 14px 12px;
+  }
+  .metric .n {
+    font-family: var(--serif); font-size: 1.9rem; font-weight: 700;
+    line-height: 1; margin: 0 0 4px;
+  }
+  .metric .l { color: var(--muted); font-size: 0.8rem; text-transform: uppercase;
+    letter-spacing: 0.04em; font-weight: 600; }
+  .metric.good { background: var(--good-bg); border-color: #b7d8c6; }
+  .metric.good .n { color: var(--good); }
+  .metric.bad { background: var(--bad-bg); border-color: #e0b8b4; }
+  .metric.bad .n { color: var(--bad); }
+  .metric.warn { background: var(--warn-bg); border-color: #e5cfa0; }
+  .metric.warn .n { color: var(--warn); }
+
+  .verdict {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 18px; font-size: 1.02rem;
+  }
+  .verdict strong { font-family: var(--serif); font-weight: 700; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+  @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .card h2 {
+    font-family: var(--serif); font-size: 1.05rem; font-weight: 700;
+    margin: 0 0 10px;
+  }
+  .card .meta { color: var(--muted); font-size: 0.82rem;
+    font-family: var(--mono); margin-bottom: 8px; }
+
+  ul.clean { list-style: none; padding: 0; margin: 0; }
+  ul.clean li {
+    padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.92rem;
+  }
+  ul.clean li:last-child { border-bottom: 0; }
+  ul.clean li button.link {
+    all: unset; cursor: pointer; color: var(--accent); font-weight: 500;
+  }
+  ul.clean li button.link:hover { text-decoration: underline; }
+  .muted { color: var(--muted); }
+
+  pre.doc, .md {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+    font-family: var(--mono); font-size: 0.82rem;
+    line-height: 1.55; max-height: 70vh;
+  }
+
+  .digest-list button.item {
+    display: block; width: 100%; text-align: left; appearance: none;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 8px; cursor: pointer; font: inherit;
+  }
+  .digest-list button.item:hover { border-color: var(--ink); }
+  .digest-list button.item .t { font-weight: 600; display: block; margin-bottom: 2px; }
+  .digest-list button.item .a { color: var(--muted); font-size: 0.8rem;
+    font-family: var(--mono); }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .toolbar button {
+    appearance: none; border: 1px solid var(--line); background: var(--bg-2);
+    padding: 6px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 0.85rem;
+  }
+  .toolbar button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+
+  .empty { color: var(--muted); padding: 24px 0; font-style: italic; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem;
+    font-weight: 600; background: var(--bg-2); color: var(--muted);
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1>coding-brain</h1>
+      <div class="sub">What your agent remembers — and whether it's helping</div>
+      <div class="fresh" id="clock">—</div>
+    </header>
+
+    <div class="receipt" id="receipt">—</div>
+
+    <nav class="tabs" id="tabs">
+      <button data-tab="stream" class="active">Stream</button>
+      <button data-tab="overview">Overview</button>
+      <button data-tab="state">State</button>
+      <button data-tab="digests">Digests</button>
+      <button data-tab="metrics">Metrics</button>
+      <button data-tab="harvest">Harvest log</button>
+    </nav>
+
+    <section class="panel active" id="panel-stream"></section>
+    <section class="panel" id="panel-overview"></section>
+    <section class="panel" id="panel-state"></section>
+    <section class="panel" id="panel-digests"></section>
+    <section class="panel" id="panel-metrics"></section>
+    <section class="panel" id="panel-harvest"></section>
+  </div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+
+let activeDigest = null;
+
+function setTab(name) {
+  document.querySelectorAll("nav.tabs button").forEach(b => {
+    b.classList.toggle("active", b.dataset.tab === name);
+  });
+  document.querySelectorAll(".panel").forEach(p => {
+    p.classList.toggle("active", p.id === "panel-" + name);
+  });
+  if (name === "stream") loadStream();
+  if (name === "state") loadState();
+  if (name === "digests") loadDigests();
+  if (name === "metrics") loadMetrics();
+  if (name === "harvest") loadHarvest();
+}
+
+function streamSkeleton() {
+  const panel = $("#panel-stream");
+  if (panel.dataset.ready) return;
+  panel.dataset.ready = "1";
+  panel.innerHTML = `
+    <div class="card" style="margin-bottom:14px">
+      <h2>Search the brain</h2>
+      <div class="toolbar" style="margin-bottom:8px">
+        <input id="q" placeholder="e.g. deploy path · port · how we fixed X" autocomplete="off"
+          style="flex:1;min-width:240px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg-2);font:inherit" />
+        <button id="q-go">Search</button>
+      </div>
+      <pre class="doc" id="q-out" style="display:none;max-height:320px"></pre>
+    </div>
+    <div class="card">
+      <h2>Memory stream <span class="muted" style="font-weight:400;font-size:0.8rem">one commit per harvest — what the brain learned, when</span></h2>
+      <div id="feed"><div class="empty">Loading…</div></div>
+    </div>`;
+  const go = async () => {
+    const q = $("#q").value.trim();
+    if (!q) return;
+    const out = $("#q-out");
+    out.style.display = "block";
+    out.textContent = "searching…";
+    const d = await (await fetch("/api/search?q=" + encodeURIComponent(q))).json();
+    out.textContent = d.text || "(no output)";
+  };
+  $("#q-go").addEventListener("click", go);
+  $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+}
+
+async function loadStream() {
+  streamSkeleton();
+  const d = await (await fetch("/api/feed")).json();
+  const feed = $("#feed");
+  if (!d.entries || !d.entries.length) {
+    feed.innerHTML = `<div class="empty">${esc(d.error || "No commits yet — the brain versions itself at each harvest.")}</div>`;
+    return;
+  }
+  feed.innerHTML = `<ul class="clean">` + d.entries.map(e => `
+    <li>
+      <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+        <span style="font-weight:600">${esc(e.subject)}</span>
+        <span class="muted" style="font-size:0.8rem;font-family:var(--mono);margin-left:auto">${esc(e.age)} · ${esc(e.hash)}</span>
+      </div>
+      <div style="margin-top:5px">${(e.files || []).map(f => f.startsWith("sessions/")
+        ? `<button class="link" data-open-digest="${esc(f.slice(9))}" style="all:unset;cursor:pointer;color:var(--accent);font-size:0.78rem;margin-right:10px">${esc(f)}</button>`
+        : `<span class="pill" style="margin-right:6px">${esc(f)}</span>`).join("")}</div>
+    </li>`).join("") + `</ul>`;
+  feed.querySelectorAll("[data-open-digest]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeDigest = btn.getAttribute("data-open-digest");
+      setTab("digests");
+    });
+  });
+}
+
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-tab]");
+  if (b) setTab(b.dataset.tab);
+});
+
+function metricClass(key, n) {
+  if (key === "misses" || key === "wrong_path") return n > 0 ? "bad" : "good";
+  if (key === "evidence_fixes" || key === "hits") return n > 0 ? "good" : "";
+  return "";
+}
+
+function renderOverview(d) {
+  const m = d.metrics.totals;
+  const c = d.counts || {};
+  $("#panel-overview").innerHTML = `
+    <div class="verdict"><strong>Verdict:</strong> ${esc(d.metrics.verdict)}</div>
+    <div class="grid">
+      <div class="metric"><div class="n">${c.digests ?? 0}</div><div class="l">Digests</div></div>
+      <div class="metric"><div class="n">${c.topics ?? 0}</div><div class="l">Topics</div></div>
+      <div class="metric"><div class="n">${c.harvested ?? 0}</div><div class="l">Sessions harvested</div></div>
+      <div class="metric ${metricClass("hits", m.hits)}"><div class="n">${m.hits}</div><div class="l">Hits · 7d</div></div>
+    </div>
+    <div class="row">
+      <div class="card">
+        <h2>Freshness</h2>
+        <div class="meta">STATE · ${esc(d.state_age)}</div>
+        <div style="margin-bottom:8px">${esc(d.state_updated || "—")}</div>
+        <div class="meta">brain: ${esc(d.brain || "")}</div>
+      </div>
+      <div class="card">
+        <h2>Open threads</h2>
+        ${d.open_threads.length
+          ? `<ul class="clean">${d.open_threads.slice(0,8).map(t => `<li>${esc(t)}</li>`).join("")}</ul>`
+          : `<div class="empty">None listed</div>`}
+      </div>
+    </div>
+    <div class="row">
+      <div class="card">
+        <h2>Recent digests</h2>
+        <ul class="clean">
+          ${d.recent_digests.map(x => `
+            <li>
+              <button class="link" data-open-digest="${esc(x.name)}">${esc(x.title || x.name)}</button>
+              <div class="muted" style="font-size:0.8rem;font-family:var(--mono)">${esc(x.age)}</div>
+            </li>`).join("") || `<li class="muted">None yet</li>`}
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Last harvest</h2>
+        <pre class="doc" style="max-height:220px;margin:0;border:0;padding:0;background:transparent">${esc(d.harvest_tail || "(no harvest log yet)")}</pre>
+      </div>
+    </div>
+  `;
+
+  $("#panel-overview").querySelectorAll("[data-open-digest]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeDigest = btn.getAttribute("data-open-digest");
+      setTab("digests");
+    });
+  });
+}
+
+async function loadOverview() {
+  const d = await (await fetch("/api/overview")).json();
+  $("#clock").textContent = "updated " + d.now;
+  $("#receipt").textContent = d.receipt || "—";
+  renderOverview(d);
+}
+
+async function loadState() {
+  const d = await (await fetch("/api/state")).json();
+  $("#panel-state").innerHTML = `
+    <div class="toolbar"><span class="muted">The briefing injected into every new session · ${esc(d.age)}</span></div>
+    <pre class="doc">${esc(d.text || "(empty — the first harvest writes it)")}</pre>
+  `;
+}
+
+async function loadDigests() {
+  const d = await (await fetch("/api/digests")).json();
+  const list = d.digests.map(x => `
+    <button class="item" data-name="${esc(x.name)}">
+      <span class="t">${esc(x.title || x.name)}</span>
+      <span class="a">${esc(x.name)} · ${esc(x.age)}</span>
+    </button>
+  `).join("") || `<div class="empty">No digests yet</div>`;
+
+  $("#panel-digests").innerHTML = `
+    <div class="split">
+      <div class="digest-list">${list}</div>
+      <div id="digest-view"><div class="empty">Pick a digest</div></div>
+    </div>
+  `;
+
+  $("#panel-digests").querySelectorAll("button.item").forEach(btn => {
+    btn.addEventListener("click", () => openDigest(btn.dataset.name));
+  });
+
+  if (activeDigest) openDigest(activeDigest);
+}
+
+async function openDigest(name) {
+  activeDigest = name;
+  const d = await (await fetch("/api/digest/" + encodeURIComponent(name))).json();
+  if (d.error) {
+    $("#digest-view").innerHTML = `<div class="empty">${esc(d.error)}</div>`;
+    return;
+  }
+  $("#digest-view").innerHTML = `
+    <div class="meta" style="margin-bottom:8px;color:var(--muted);font-family:var(--mono)">${esc(d.name)} · ${esc(d.age)}</div>
+    <pre class="doc">${esc(d.text)}</pre>
+  `;
+}
+
+async function loadMetrics(days = 7) {
+  const d = await (await fetch("/api/metrics?days=" + days)).json();
+  const t = d.totals;
+  const daysHtml = (d.by_day || []).map(x => `
+    <tr>
+      <td>${esc(x.date)}</td>
+      <td>${x.misses}</td><td>${x.hits}</td><td>${x.evidence_fixes}</td><td>${x.wrong_path}</td>
+    </tr>
+  `).join("") || `<tr><td colspan="5" class="muted">No harvests in window</td></tr>`;
+
+  $("#panel-metrics").innerHTML = `
+    <div class="toolbar">
+      <button data-days="7" class="${days===7?"active":""}">7 days</button>
+      <button data-days="14" class="${days===14?"active":""}">14 days</button>
+      <button data-days="30" class="${days===30?"active":""}">30 days</button>
+      <span class="muted">${t.harvests} harvests</span>
+    </div>
+    <div class="verdict"><strong>Verdict:</strong> ${esc(d.verdict)}</div>
+    <div class="grid">
+      <div class="metric ${metricClass("misses", t.misses)}"><div class="n">${t.misses}</div><div class="l">Misses</div></div>
+      <div class="metric ${metricClass("hits", t.hits)}"><div class="n">${t.hits}</div><div class="l">Hits</div></div>
+      <div class="metric ${metricClass("evidence_fixes", t.evidence_fixes)}"><div class="n">${t.evidence_fixes}</div><div class="l">Evidence fixes</div></div>
+      <div class="metric ${metricClass("wrong_path", t.wrong_path)}"><div class="n">${t.wrong_path}</div><div class="l">Wrong path</div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px;overflow:auto">
+      <h2>By day</h2>
+      <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:0.85rem">
+        <thead><tr style="text-align:left;color:var(--muted)">
+          <th style="padding:6px 4px">Date</th><th>Miss</th><th>Hit</th><th>Fix</th><th>Wrong</th>
+        </tr></thead>
+        <tbody>${daysHtml}</tbody>
+      </table>
+    </div>
+    <div class="row">
+      <div class="card">
+        <h2>Recent misses</h2>
+        ${d.miss_notes.length
+          ? `<ul class="clean">${d.miss_notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`
+          : `<div class="empty">None — tag with <code>brain miss: …</code> when you re-explain</div>`}
+      </div>
+      <div class="card">
+        <h2>Recent hits</h2>
+        ${(d.hit_notes || []).length
+          ? `<ul class="clean">${d.hit_notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`
+          : `<div class="empty">None yet — hits are tagged when brain context gets used</div>`}
+      </div>
+    </div>
+    <div class="row">
+      <div class="card">
+        <h2>Stale claims caught</h2>
+        ${d.fix_notes.length
+          ? `<ul class="clean">${d.fix_notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`
+          : `<div class="empty">None yet</div>`}
+      </div>
+      <div class="card"></div>
+    </div>
+  `;
+
+  $("#panel-metrics").querySelectorAll("button[data-days]").forEach(b => {
+    b.addEventListener("click", () => loadMetrics(Number(b.dataset.days)));
+  });
+}
+
+async function loadHarvest() {
+  const d = await (await fetch("/api/harvest-log")).json();
+  $("#panel-harvest").innerHTML = `
+    <div class="toolbar"><span class="muted">Last harvest activity · ${esc(d.age)}</span></div>
+    <pre class="doc">${esc((d.lines || []).join("\n") || "(empty — no harvest has run yet)")}</pre>
+  `;
+}
+
+loadOverview();
+loadStream();
+setInterval(() => {
+  loadOverview();
+  if (document.querySelector("#panel-stream.active")) loadStream();
+}, 15000);
+</script>
+</body>
+</html>
