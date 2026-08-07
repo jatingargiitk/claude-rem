@@ -431,22 +431,27 @@ function buildCorpus(brain, workspace, sessions, cfg) {
   const maxSessions = cfg.liteStateSessions || 15;
   const perSession = cfg.liteStatePerSessionChars || 30000;
 
-  // Project-diverse, recency-weighted selection: round-robin the newest
-  // session from each project so one chatty project (or a few whale
-  // sessions) can't monopolize the briefing. Per-session slices are capped
-  // so the same budget sees 10-15 sessions instead of 3 giant ones.
-  const byProject = new Map();
-  for (const s of sessions) {
-    if (!byProject.has(s.project)) byProject.set(s.project, []);
-    byProject.get(s.project).push(s); // sessions arrive newest-first
-  }
-  const queues = [...byProject.values()];
+  // Selection = coverage + recency, in that order:
+  //   Pass 1: ONE slot per project (its newest session) — every project gets
+  //           seen exactly once, so a dormant project can never eat more
+  //           than one slot (round-robin previously let a dormant project
+  //           dominate once other queues ran dry).
+  //   Pass 2: all remaining slots go to the globally newest sessions,
+  //           regardless of project — the briefing is mostly about NOW.
   const picked = [];
-  let qi = 0;
-  while (picked.length < maxSessions && queues.some((q) => q.length)) {
-    const q = queues[qi % queues.length];
-    qi++;
-    if (q.length) picked.push(q.shift());
+  const seenProjects = new Set();
+  for (const s of sessions) { // newest-first
+    if (picked.length >= maxSessions) break;
+    if (seenProjects.has(s.project)) continue;
+    seenProjects.add(s.project);
+    picked.push(s);
+  }
+  const pickedPaths = new Set(picked.map((s) => s.path));
+  for (const s of sessions) {
+    if (picked.length >= maxSessions) break;
+    if (pickedPaths.has(s.path)) continue;
+    picked.push(s);
+    pickedPaths.add(s.path);
   }
 
   const stateDir = path.join(brain, '.state');
@@ -493,6 +498,7 @@ Read ${path.join(brain, 'INSTRUCTIONS.md')} for the STATE.md format (Step 3) and
 
 Rules:
 - STATE.md is a ~100-line current-truth dashboard: Active projects, Conventions, Open threads.
+- ORDER BY RECENCY: list Active projects newest-activity-first; the project the user worked on most recently comes first and gets the most detail. A project whose sessions are all noticeably older than the rest (roughly 3+ weeks stale) is NOT active — give it a single line under a "Dormant" heading instead, no matter how much corpus text it has. Corpus volume is a sampling artifact, not importance.
 - Compile, don't narrate. Facts and decisions only; date facts that can go stale.
 - The corpus is historical: prefer the newest session's version of any fact; mark things you cannot confirm as "unverified:" or "as of <date>".
 - Never store secrets/keys/tokens; reference env var names only.
