@@ -71,7 +71,7 @@ receipt="🧠 brain: last harvest ${freshness}${lastlearn:+ · $lastlearn}${warn
 
 echo "[CODING BRAIN] Persistent context for this workspace, distilled from previous sessions. Harvest reconciles claims against git/file evidence before promoting to STATE — still treat this as a starting point and re-check when it matters."
 echo
-echo "Open your FIRST reply with this receipt line verbatim (then a blank line, then your answer) so the user can see the brain is alive without asking:"
+echo "In the VERY FIRST reply of this session ONLY, open with this receipt line verbatim (then a blank line, then your answer). NEVER repeat it in any later reply of this conversation:"
 echo "$receipt"
 echo
 echo "PULL RETRIEVAL: anything not in this dump (past sessions, fixes, how-we-did-X) is searchable — run:"
