@@ -304,7 +304,7 @@ grep -q -- '--setting-sources' "$CLAUDE_STUB_LOG" \
 check "harvest: claude invoked with --setting-sources + //path/** jail" $r
 
 r=1
-git -C "$BRAIN" log --oneline | grep -q "^.* harvest: aaaaaaaa" && [ -f "$BRAIN/sessions/2026-01-01-stub-harvest.md" ] && r=0
+git -C "$BRAIN" log --oneline | grep -q "harvest: Stub harvest digest" && [ -f "$BRAIN/sessions/2026-01-01-stub-harvest.md" ] && r=0
 check "harvest: brain git commit per harvest + digest exists" $r
 
 r=1
@@ -467,7 +467,7 @@ check "cli status: location + counts + commits" $r
 
 LG=$(run_cli "$FAKE_SETTINGS3" log)
 r=1
-echo "$LG" | grep -q "harvest: aaaaaaaa" && r=0
+echo "$LG" | grep -q "harvest: Stub harvest digest" && r=0
 check "cli log: shows harvest commits" $r
 
 SC=$(run_cli "$FAKE_SETTINGS3" search helloworldfact)
