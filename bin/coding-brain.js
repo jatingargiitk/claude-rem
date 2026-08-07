@@ -100,6 +100,28 @@ function die(msg) {
   process.exit(1);
 }
 
+function findFreePort(start) {
+  // Walk forward from `start` until a 127.0.0.1 port binds; 0 on give-up
+  // (ui.py then lets the OS pick and prints whatever it got).
+  const net = require('net');
+  return new Promise((resolve) => {
+    const tryPort = (p, attempts) => {
+      if (attempts <= 0) return resolve(0);
+      const srv = net.createServer();
+      srv.once('error', () => tryPort(p + 1, attempts - 1));
+      srv.listen(p, '127.0.0.1', () => srv.close(() => resolve(p)));
+    };
+    tryPort(start, 20);
+  });
+}
+
+function openBrowser(url) {
+  const cmd = process.platform === 'darwin' ? 'open'
+    : process.platform === 'linux' ? 'xdg-open' : null;
+  if (!cmd) return;
+  try { spawn(cmd, [url], { stdio: 'ignore', detached: true }).unref(); } catch { /* best-effort */ }
+}
+
 // --------------------------------------------------------------- inventory
 // Scan Claude Code (~/.claude/projects/*/) and Cursor
 // (~/.cursor/projects/*/agent-transcripts/) for transcripts whose session cwd
@@ -608,6 +630,28 @@ async function cmdInit(args) {
   console.log('\nDone. Your next session in this workspace starts already knowing this —');
   console.log('every session end harvests new knowledge automatically (debounced, in the background).');
   console.log('Check anytime: coding-brain status | coding-brain search <words> | coding-brain log');
+
+  // f. Post-install viewer — the install ends on a visual, not terminal text.
+  // Detached so init can exit; killed by `uninstall`, gone on reboot, and
+  // `coding-brain ui` reopens it any time. Suppressed when non-interactive.
+  const noUi = args.includes('--no-ui') || process.env.CODING_BRAIN_NO_UI === '1'
+    || dryRun || !process.stdout.isTTY;
+  if (!noUi) {
+    try {
+      const uiCfg = readJsonSoft(path.join(brain, 'config.json'), {});
+      const port = await findFreePort(uiCfg.uiPort || 4180);
+      if (port) {
+        const child = spawn('python3', [path.join(SCRIPTS, 'ui.py'), brain, '--port', String(port)],
+          { detached: true, stdio: 'ignore' });
+        child.unref();
+        fs.writeFileSync(path.join(brain, '.state', 'ui.pid'), String(child.pid));
+        const url = `http://127.0.0.1:${port}`;
+        console.log(`\nViewer: ${url} (\`coding-brain ui\` to reopen later)`);
+        // Give the server a beat to bind before the browser hits it.
+        setTimeout(() => openBrowser(url), 700);
+      }
+    } catch { /* the viewer is a nicety — never fail init over it */ }
+  }
 }
 
 // ------------------------------------------------------------------ status
@@ -691,7 +735,37 @@ function cmdUninstall(args) {
   const workspace = brain ? path.dirname(brain) : process.cwd();
   uninstallCursorHooks(workspace, { dryRun });
   uninstallCodex(workspace, { dryRun });
+  if (brain) stopUi(brain, { dryRun });
   if (brain) console.log(`Brain left untouched at ${brain} — delete it yourself if you want it gone.`);
+}
+
+function stopUi(brain, opts) {
+  const pidFile = path.join(brain, '.state', 'ui.pid');
+  let pid = 0;
+  try { pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10) || 0; } catch { return; }
+  if (opts.dryRun) { console.log(`[dry-run] would stop viewer pid ${pid}`); return; }
+  if (pid > 0) {
+    try { process.kill(pid, 'SIGTERM'); console.log(`Stopped viewer (pid ${pid}).`); }
+    catch { /* already gone */ }
+  }
+  fs.rmSync(pidFile, { force: true });
+}
+
+// ---------------------------------------------------------------------- ui
+
+async function cmdUi(args) {
+  const brain = findBrain(process.cwd());
+  if (!brain) die('no .coding-brain found here — run `coding-brain init` in your workspace first, then `coding-brain ui`');
+  const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
+  const port = await findFreePort(cfg.uiPort || 4180);
+  const url = port ? `http://127.0.0.1:${port}` : null;
+  if (url) console.log(`Viewer: ${url} — Ctrl-C to stop (it only runs while you're looking at it).`);
+  if (url && !args.includes('--no-open')) setTimeout(() => openBrowser(url), 700);
+  // Foreground on purpose: no daemon, no LaunchAgent, nothing resident.
+  const child = spawn('python3', [path.join(SCRIPTS, 'ui.py'), brain, '--port', String(port)],
+    { stdio: ['ignore', 'inherit', 'inherit'] });
+  const code = await new Promise((res) => child.on('exit', res));
+  process.exit(code || 0);
 }
 
 // -------------------------------------------------------------------- main
@@ -702,7 +776,9 @@ Usage: coding-brain <command>
 
   init        Scan past transcripts, compile a starter STATE (with consent),
               and install session hooks. Flags: --yes --dry-run --hooks-only
-              --cursor --codex
+              --cursor --codex --no-ui
+  ui          Open the local viewer (Stream/State/Digests/Metrics) in your
+              browser. Foreground; Ctrl-C stops it. Flag: --no-open
   status      Brain location, last harvest age, counts, last 5 brain commits
   search <w>  Ranked lexical search over STATE + topics + digests
   log         git log of the brain (one commit per harvest)
@@ -715,6 +791,7 @@ Usage: coding-brain <command>
   try { ensureRuntime(); } catch { /* stable-copy is best-effort; package scripts remain the source */ }
   switch (cmd) {
     case 'init': await cmdInit(args); break;
+    case 'ui': await cmdUi(args); break;
     case 'status': cmdStatus(); break;
     case 'search': cmdSearch(args); break;
     case 'log': cmdLog(); break;
