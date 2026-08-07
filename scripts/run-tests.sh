@@ -660,6 +660,75 @@ r=1
   && grep -q 'trust_level' "$CODEX_CONFIG" && r=0
 check "codex uninstall: notify + managed block removed, foreign content kept" $r
 
+# ------------------------------------------------------------------- ui.py
+
+UI_LOG="$TESTWS/ui.log"
+python3 "$SCRIPTS/ui.py" "$BRAIN" --port 0 > "$UI_LOG" 2>&1 &
+UI_PID=$!
+wait_for 10 "grep -q 'http://127.0.0.1:' '$UI_LOG'"
+UI_PORT=$(sed -n 's|.*http://127.0.0.1:\([0-9]*\).*|\1|p' "$UI_LOG" | head -1)
+UI="http://127.0.0.1:$UI_PORT"
+fetch() { curl -s -m 5 "$1"; }
+
+r=1
+[ -n "$UI_PORT" ] && fetch "$UI/" | grep -q "coding-brain" && r=0
+check "ui: binds 127.0.0.1 free port + serves the page" $r
+
+r=1
+fetch "$UI/api/overview" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert 'brain: last harvest' in d['receipt'], d['receipt']
+assert d['counts']['digests'] >= 1, d['counts']
+assert d['metrics']['totals']['harvests'] >= 1, d['metrics']
+assert d['state_age'] != 'missing', d['state_age']
+" >/dev/null 2>&1 && r=0
+check "ui: /api/overview has receipt + counts + metrics + STATE age" $r
+
+r=1
+fetch "$UI/api/state" | grep -q "helloworldfact" && r=0
+check "ui: /api/state serves the live STATE.md" $r
+
+r=1
+fetch "$UI/api/feed" | grep -q "harvest:" && r=0
+check "ui: /api/feed streams harvest commits with titles" $r
+
+r=1
+fetch "$UI/api/search?q=helloworldfact" | grep -q "STATE.md" && r=0
+check "ui: /api/search proxies search.sh against this brain" $r
+
+r=1
+fetch "$UI/api/digests" | grep -q "2026-01-01-stub-harvest.md" \
+  && fetch "$UI/api/digest/2026-01-01-stub-harvest.md" | grep -q "Stub harvest" && r=0
+check "ui: digest list + single-digest fetch" $r
+
+r=1
+T1=$(curl -s -m 5 --path-as-is "$UI/api/digest/../config.json")
+T2=$(fetch "$UI/api/digest/..%2F..%2Fconfig.json")
+echo "$T1$T2" | grep -q '"error"' && ! echo "$T1$T2" | grep -q "uiPort" && r=0
+check "ui: digest path traversal rejected" $r
+
+kill "$UI_PID" 2>/dev/null
+wait "$UI_PID" 2>/dev/null
+
+# `coding-brain ui` with no brain anywhere above cwd: polite error, exit 1.
+NOBRAIN=$(mktemp -d)
+UIERR=$( (cd "$NOBRAIN" && node "$ROOT/bin/coding-brain.js" ui --no-open 2>&1) )
+uirc=$?
+r=1
+[ "$uirc" -ne 0 ] && echo "$UIERR" | grep -q "no .coding-brain found" \
+  && echo "$UIERR" | grep -q "coding-brain init" && r=0
+check "cli ui: polite error when no brain exists" $r
+rm -rf "$NOBRAIN"
+
+# init with CODING_BRAIN_NO_UI=1 must not spawn the post-install viewer.
+rm -f "$BRAIN/.state/ui.pid"
+CODING_BRAIN_NO_UI=1 run_cli "$FAKE_SETTINGS3" init --yes --hooks-only >/dev/null
+sleep 0.5
+r=1
+[ ! -f "$BRAIN/.state/ui.pid" ] && ! pgrep -f "ui.py $BRAIN" >/dev/null 2>&1 && r=0
+check "init: CODING_BRAIN_NO_UI=1 suppresses the post-install viewer" $r
+
 # ------------------------------------------------------------------ result
 
 echo
