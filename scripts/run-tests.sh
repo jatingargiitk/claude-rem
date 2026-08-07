@@ -5,7 +5,9 @@
 # search ranking, recall injection, harvest debounce/backoff/guard, the full
 # distill pipeline (with `claude` stubbed on PATH), metrics, hook-install
 # idempotency (against a throwaway settings.json copy — the real
-# ~/.claude/settings.json is never touched), uninstall, and the init flow.
+# ~/.claude/settings.json is never touched), uninstall, the init flow, and
+# the Codex integration (rollout filter, inventory, notify hook, config.toml
+# notify insertion, AGENTS.md managed block).
 #
 # Everything runs inside <repo>/.testws/ (recreated on every run, gitignored).
 # Prints PASS/FAIL per check; exit 1 if any check fails.
@@ -26,6 +28,7 @@ export CLAUDE_STUB_LOG
 
 UUID1="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"   # claude-side session
 UUID2="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"   # cursor-side session
+UUID3="cccccccc-cccc-cccc-cccc-cccccccccccc"   # codex-side session
 
 PASS=0
 FAIL=0
@@ -57,7 +60,8 @@ wait_for() {  # wait_for <seconds> <shell-test...>
 rm -rf "$TESTWS"
 mkdir -p "$WS" "$WS2" "$STUBBIN" \
   "$FAKEHOME/.claude/projects/testproj" \
-  "$FAKEHOME/.cursor/projects"
+  "$FAKEHOME/.cursor/projects" \
+  "$FAKEHOME/.codex/sessions/2026/08/07"
 
 # Tiny fake git repo (the "workspace").
 git -C "$WS" init -q
@@ -136,6 +140,40 @@ with open(os.path.join(tdir, uuid2 + ".jsonl"), "w") as fh:
     for r in cur:
         fh.write(json.dumps(r) + "\n")
 PY
+
+# Codex rollout fixture (session_meta cwd = the workspace; developer/env
+# boilerplate that must be dropped; user/assistant text; a function_call).
+CODEX_T="$FAKEHOME/.codex/sessions/2026/08/07/rollout-2026-08-07T10-00-00-$UUID3.jsonl"
+python3 - "$WS" "$CODEX_T" "$UUID3" <<'PY'
+import json, sys
+ws, out, uuid3 = sys.argv[1:4]
+
+def line(t, payload):
+    return {"timestamp": "2026-08-07T10:00:00.000Z", "type": t, "payload": payload}
+
+def msg(role, ctype, text):
+    return line("response_item", {"type": "message", "role": role,
+                                  "content": [{"type": ctype, "text": text}]})
+
+records = [
+    line("session_meta", {"id": uuid3, "cwd": ws, "originator": "codex_cli_rs",
+                          "cli_version": "0.104.0", "source": "cli"}),
+    msg("developer", "input_text", "DEVBOILERPLATE permissions and sandboxing rules"),
+    msg("user", "input_text", "# AGENTS.md instructions for " + ws + "\nAGENTSDUMP skip me"),
+    msg("user", "input_text", "<environment_context>\n  <cwd>" + ws + "</cwd>\n</environment_context>"),
+    msg("user", "input_text", "codexuserword please add a farewell message to hello.py"),
+    msg("user", "input_text", "token is <private>CODEXSECRET</private> ok"),
+    line("event_msg", {"type": "task_started"}),
+    line("response_item", {"type": "function_call", "name": "exec_command",
+                           "arguments": "{\"cmd\":\"cat hello.py\"}", "call_id": "c1"}),
+    line("turn_context", {"model": "gpt-5"}),
+    msg("assistant", "output_text", "codexassistantword added a farewell print."),
+]
+with open(out, "w") as fh:
+    for r in records:
+        fh.write(json.dumps(r) + "\n")
+PY
+
 CLAUDE_T="$FAKEHOME/.claude/projects/testproj/$UUID1.jsonl"
 MUNGED=$(echo "$WS" | sed 's|^/||; s|/|-|g')
 CURSOR_T="$FAKEHOME/.cursor/projects/$MUNGED/agent-transcripts/$UUID2/$UUID2.jsonl"
@@ -181,6 +219,24 @@ check "filter: strips <private> spans (incl. multiline)" $r
 r=1
 grep -q "BIGBLOBMARKER" "$OUT" || r=0
 check "filter: drops big tool_result masquerade" $r
+
+# Codex rollout format (auto-detected per line).
+OUTX="$TESTWS/filtered-codex.txt"
+python3 "$SCRIPTS/filter.py" "$CODEX_T" "$OUTX" >/dev/null 2>&1
+r=1
+grep -q "\[USER\] codexuserword" "$OUTX" \
+  && grep -q "\[ASSISTANT\] codexassistantword" "$OUTX" \
+  && grep -q "\[TOOL\] exec_command:" "$OUTX" && r=0
+check "filter(codex): keeps user/assistant text + tool targets" $r
+
+r=1
+if ! grep -q "DEVBOILERPLATE" "$OUTX" && ! grep -q "AGENTSDUMP" "$OUTX" \
+  && ! grep -q "environment_context" "$OUTX"; then r=0; fi
+check "filter(codex): drops developer role + injected boilerplate" $r
+
+r=1
+if ! grep -q "CODEXSECRET" "$OUTX" && grep -q "private content removed" "$OUTX"; then r=0; fi
+check "filter(codex): <private> stripping applies" $r
 
 # ----------------------------------------------------------- search.sh
 
@@ -395,6 +451,7 @@ run_cli() {  # run_cli <settings-file> <args...>
   (cd "$WS" && CODING_BRAIN_SETTINGS="$settings" \
     CODING_BRAIN_CLAUDE_DIR="$FAKEHOME/.claude" \
     CODING_BRAIN_CURSOR_DIR="$FAKEHOME/.cursor" \
+    CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
     node "$ROOT/bin/coding-brain.js" "$@" 2>&1)
 }
 
@@ -431,8 +488,8 @@ FAKE_SETTINGS3="$TESTWS/settings-init.json"
 echo '{}' > "$FAKE_SETTINGS3"
 INIT_OUT=$(run_cli "$FAKE_SETTINGS3" init --yes)
 r=1
-echo "$INIT_OUT" | grep -q "Found 2 past session(s) across 1 project(s)" && r=0
-check "init: inventory finds claude + cursor sessions for this workspace" $r
+echo "$INIT_OUT" | grep -q "Found 3 past session(s) across 1 project(s)" && r=0
+check "init: inventory finds claude + cursor + codex sessions for this workspace" $r
 
 r=1
 grep -q "helloworldfact" "$BRAIN/STATE.md" \
@@ -476,6 +533,132 @@ SC=$(run_cli "$FAKE_SETTINGS3" search helloworldfact)
 r=1
 echo "$SC" | grep -q "STATE.md" && r=0
 check "cli search: delegates to search.sh with discovered brain" $r
+
+# ---------------------------------------------------- codex-notify-hook.sh
+
+CODEX_STEM=$(basename "$CODEX_T" .jsonl)
+CALLS_BEFORE=$(claude_calls)
+
+# Guard: harvester's own session must never spawn.
+CODING_BRAIN_HARVEST=1 CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
+  bash "$SCRIPTS/codex-notify-hook.sh" '{}'
+sleep 0.5
+r=1
+[ "$(claude_calls)" -eq "$CALLS_BEFORE" ] && r=0
+check "codex-notify: recursion guard (CODING_BRAIN_HARVEST)" $r
+
+# Debounce: rollout below threshold must not spawn.
+CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
+  bash "$SCRIPTS/codex-notify-hook.sh" '{"type":"agent-turn-complete"}'
+sleep 1
+r=1
+[ "$(claude_calls)" -eq "$CALLS_BEFORE" ] && [ ! -f "$BRAIN/.state/$CODEX_STEM" ] && r=0
+check "codex-notify: debounce below threshold (no spawn)" $r
+
+# Pad the rollout past the threshold and notify again (arg schema is opaque
+# to the hook — it relies on the recency scan, not the JSON payload).
+python3 - "$CODEX_T" <<'PY'
+import json, sys
+with open(sys.argv[1], "a") as fh:
+    for i in range(40):
+        rec = {"timestamp": "t", "type": "response_item",
+               "payload": {"type": "message", "role": "assistant",
+                           "content": [{"type": "output_text", "text": "codex filler %d " % i + "w" * 700}]}}
+        fh.write(json.dumps(rec) + "\n")
+PY
+CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
+  bash "$SCRIPTS/codex-notify-hook.sh" '{"type":"agent-turn-complete"}'
+wait_for 30 "[ -f '$BRAIN/.state/$CODEX_STEM' ]"
+r=1
+[ -f "$BRAIN/.state/$CODEX_STEM" ] && [ "$(claude_calls)" -eq $((CALLS_BEFORE + 1)) ] && r=0
+check "codex-notify: recency scan + debounced spawn feeds the same brain" $r
+
+# ---------------------------------------- codex config.toml + AGENTS.md
+
+CODEX_CONFIG="$FAKEHOME/.codex/config.toml"
+cat > "$CODEX_CONFIG" <<'EOF'
+[projects."/some/path"]
+trust_level = "trusted"
+EOF
+printf 'USERCONTENT keep me\n' > "$WS/AGENTS.md"
+
+run_cli "$FAKE_SETTINGS3" init --yes --hooks-only --codex >/dev/null
+run_cli "$FAKE_SETTINGS3" init --yes --hooks-only --codex >/dev/null
+
+r=1
+[ "$(grep -c '^notify' "$CODEX_CONFIG")" -eq 1 ] \
+  && grep -q 'codex-notify-hook.sh' "$CODEX_CONFIG" \
+  && grep -q 'trust_level' "$CODEX_CONFIG" && r=0
+check "codex install: notify added once (idempotent), existing config preserved" $r
+
+# TOML top-level keys must precede any [table] section.
+r=1
+nline=$(grep -n '^notify' "$CODEX_CONFIG" | head -1 | cut -d: -f1)
+tline=$(grep -n '^\[projects' "$CODEX_CONFIG" | head -1 | cut -d: -f1)
+[ -n "$nline" ] && [ -n "$tline" ] && [ "$nline" -lt "$tline" ] && r=0
+check "codex install: notify inserted at top of config.toml (before tables)" $r
+
+r=1
+[ "$(grep -c 'coding-brain:start' "$WS/AGENTS.md")" -eq 1 ] \
+  && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" \
+  && grep -q 'STATE.md' "$WS/AGENTS.md" \
+  && grep -q 'brain: last harvest' "$WS/AGENTS.md" && r=0
+check "codex install: AGENTS.md managed block created once, user content kept" $r
+
+# A foreign notify entry must never be overwritten (TOML allows only one).
+CODEX2="$TESTWS/codex2"
+mkdir -p "$CODEX2/sessions"
+printf 'notify = ["/usr/bin/true"]\n' > "$CODEX2/config.toml"
+cp "$CODEX2/config.toml" "$CODEX2/config.toml.orig"
+OUT_FOREIGN=$( (cd "$WS" && CODING_BRAIN_SETTINGS="$FAKE_SETTINGS3" \
+  CODING_BRAIN_CLAUDE_DIR="$FAKEHOME/.claude" \
+  CODING_BRAIN_CURSOR_DIR="$FAKEHOME/.cursor" \
+  CODING_BRAIN_CODEX_DIR="$CODEX2" \
+  node "$ROOT/bin/coding-brain.js" init --yes --hooks-only --codex 2>&1) )
+r=1
+cmp -s "$CODEX2/config.toml" "$CODEX2/config.toml.orig" \
+  && echo "$OUT_FOREIGN" | grep -q "Not overwriting" && r=0
+check "codex install: foreign notify entry respected (manual instruction printed)" $r
+
+# ---------------------------------------------------- distill AGENTS refresh
+
+# Tamper inside the managed block; the next successful harvest must repair it.
+python3 - "$WS/AGENTS.md" <<'PY'
+import sys
+p = sys.argv[1]
+t = open(p).read().replace("compiled current-truth briefing", "TAMPERED")
+open(p, "w").write(t)
+PY
+python3 - "$CLAUDE_T" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path) as fh:
+    first = json.loads(fh.readline())
+cwd = first["cwd"]
+with open(path, "a") as fh:
+    for i in range(40):
+        rec = {"type": "assistant", "cwd": cwd, "sessionId": "s",
+               "message": {"role": "assistant",
+                           "content": [{"type": "text", "text": "refresh filler %d " % i + "q" * 700}]}}
+        fh.write(json.dumps(rec) + "\n")
+PY
+run_cli "$FAKE_SETTINGS3" harvest >/dev/null
+r=1
+! grep -q "TAMPERED" "$WS/AGENTS.md" \
+  && grep -q 'coding-brain:start' "$WS/AGENTS.md" \
+  && grep -q 'compiled current-truth briefing' "$WS/AGENTS.md" \
+  && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" && r=0
+check "distill: refreshes AGENTS.md managed block after harvest" $r
+
+# ---------------------------------------------------- codex uninstall
+
+run_cli "$FAKE_SETTINGS3" uninstall >/dev/null
+r=1
+! grep -q 'coding-brain:start' "$WS/AGENTS.md" \
+  && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" \
+  && ! grep -q '^notify' "$CODEX_CONFIG" \
+  && grep -q 'trust_level' "$CODEX_CONFIG" && r=0
+check "codex uninstall: notify + managed block removed, foreign content kept" $r
 
 # ------------------------------------------------------------------ result
 
