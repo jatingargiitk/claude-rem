@@ -494,7 +494,7 @@ check "init: inventory finds claude + cursor + codex sessions for this workspace
 r=1
 grep -q "helloworldfact" "$BRAIN/STATE.md" \
   && git -C "$BRAIN" log --oneline | grep -q "init: lite STATE" \
-  && echo "$INIT_OUT" | grep -q "===== STATE.md =====" && r=0
+  && echo "$INIT_OUT" | grep -q "===== Your starter briefing =====" && r=0
 check "init: lite STATE compiled (one stubbed model call) + committed + printed" $r
 
 r=1
@@ -678,12 +678,26 @@ r=1
 fetch "$UI/api/overview" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
-assert 'brain: last harvest' in d['receipt'], d['receipt']
+assert d['receipt'].startswith('🧠 updated'), d['receipt']
+assert 'learned:' in d['receipt'], d['receipt']
+assert 'brain: last harvest' not in d['receipt'], d['receipt']  # old phrasing gone
 assert d['counts']['digests'] >= 1, d['counts']
 assert d['metrics']['totals']['harvests'] >= 1, d['metrics']
 assert d['state_age'] != 'missing', d['state_age']
 " >/dev/null 2>&1 && r=0
-check "ui: /api/overview has receipt + counts + metrics + STATE age" $r
+check "ui: /api/overview plain-language receipt + counts + metrics" $r
+
+# Simplified one-page layout: search + briefing card + learned feed, no tabs.
+PAGE=$(fetch "$UI/")
+r=1
+echo "$PAGE" | grep -q 'id="q"' \
+  && echo "$PAGE" | grep -q "What it's learned" \
+  && echo "$PAGE" | grep -q "What it knows right now" \
+  && echo "$PAGE" | grep -q "Ask your brain" \
+  && ! echo "$PAGE" | grep -q "Metrics" \
+  && ! echo "$PAGE" | grep -q "Harvest log" \
+  && ! echo "$PAGE" | grep -q "Overview" && r=0
+check "ui: one-page layout (search + briefing + feed; no tab labels)" $r
 
 r=1
 fetch "$UI/api/state" | grep -q "helloworldfact" && r=0
