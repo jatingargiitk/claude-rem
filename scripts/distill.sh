@@ -157,12 +157,21 @@ if [ "$rc" -eq 0 ]; then
   rm -f "$STATE_DIR/last_failure"
   git -C "$BRAIN_DIR" add -A >> "$LOG_FILE" 2>&1
   if ! git -C "$BRAIN_DIR" diff --cached --quiet 2>/dev/null; then
+    # Commit message = what was learned (newest changed digest's title), so the
+    # receipt and `coding-brain log` read like news, not session-ids.
+    TITLE=$(git -C "$BRAIN_DIR" diff --cached --name-only | grep '^sessions/' | head -1)
+    if [ -n "$TITLE" ] && [ -f "$BRAIN_DIR/$TITLE" ]; then
+      TITLE=$(head -1 "$BRAIN_DIR/$TITLE" | sed 's/^# *//' | cut -c1-60)
+    else
+      TITLE=$(git -C "$BRAIN_DIR" diff --cached --name-only | grep '^topics/' | sed 's|topics/||; s|\.md$||' | head -3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+    fi
+    [ -z "$TITLE" ] && TITLE="${STEM:0:8}"
     git -C "$BRAIN_DIR" -c user.name="coding-brain" -c user.email="coding-brain@local" \
-      commit -qm "harvest: ${STEM:0:8} $(date '+%F %H:%M')" >> "$LOG_FILE" 2>&1
+      commit -qm "harvest: $TITLE" >> "$LOG_FILE" 2>&1
     CHANGED=$(git -C "$BRAIN_DIR" diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
   fi
   short=$(echo "$CHANGED" | tr ' ' '\n' | sed 's|.*/||; s|\.md$||' | grep -v '^$' | head -4 | tr '\n' ',' | sed 's/,$//; s/,/, /g')
-  notify "coding-brain" "Harvested ${STEM:0:8} — updated: ${short:-nothing new}"
+  notify "coding-brain" "Harvested: ${TITLE:-${STEM:0:8}} — updated: ${short:-nothing new}"
 else
   date +%s > "$STATE_DIR/last_failure"
   notify "coding-brain" "Harvest failed (exit $rc) — see .coding-brain/.state/harvest.log"
