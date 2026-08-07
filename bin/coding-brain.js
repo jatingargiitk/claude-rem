@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// coding-brain — a compiled brain for Claude Code & Cursor.
+// coding-brain — a compiled brain for Claude Code, Cursor & Codex.
 // CLI entry. Node >= 18, ZERO npm dependencies.
 //
 // Subcommands:
@@ -13,6 +13,7 @@
 // Env overrides (used by tests; defaults are the real locations):
 //   CODING_BRAIN_CLAUDE_DIR   default ~/.claude
 //   CODING_BRAIN_CURSOR_DIR   default ~/.cursor
+//   CODING_BRAIN_CODEX_DIR    default ~/.codex
 //   CODING_BRAIN_SETTINGS     default ~/.claude/settings.json
 
 'use strict';
@@ -47,6 +48,7 @@ function ensureRuntime() {
 
 const CLAUDE_DIR = process.env.CODING_BRAIN_CLAUDE_DIR || path.join(os.homedir(), '.claude');
 const CURSOR_DIR = process.env.CODING_BRAIN_CURSOR_DIR || path.join(os.homedir(), '.cursor');
+const CODEX_DIR = process.env.CODING_BRAIN_CODEX_DIR || path.join(os.homedir(), '.codex');
 const SETTINGS_PATH = process.env.CODING_BRAIN_SETTINGS || path.join(os.homedir(), '.claude', 'settings.json');
 
 // ------------------------------------------------------------------ helpers
@@ -122,6 +124,37 @@ function claudeCwdOf(jsonlPath) {
   return null;
 }
 
+function codexCwdOf(jsonlPath) {
+  // Codex rollouts: line 1 is session_meta with payload.cwd. Read only the
+  // head and only the first line — cheap enough to scan every rollout.
+  try {
+    const fd = fs.openSync(jsonlPath, 'r');
+    const buf = Buffer.alloc(16384);
+    const n = fs.readSync(fd, buf, 0, buf.length, 0);
+    fs.closeSync(fd);
+    let head = buf.toString('utf8', 0, n);
+    const nl = head.indexOf('\n');
+    if (nl !== -1) head = head.slice(0, nl);
+    const m = head.match(/"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (m) return JSON.parse('"' + m[1] + '"');
+  } catch { /* unreadable — skip */ }
+  return null;
+}
+
+function walkJsonl(dir, depth) {
+  // Codex nests sessions as YYYY/MM/DD/rollout-*.jsonl; walk with a depth cap.
+  const out = [];
+  if (depth < 0) return out;
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of entries) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...walkJsonl(p, depth - 1));
+    else if (e.isFile() && e.name.endsWith('.jsonl')) out.push(p);
+  }
+  return out;
+}
+
 function inventory(workspace) {
   const sessions = []; // {path, mtime, source, project}
   const wsPrefix = workspace.endsWith(path.sep) ? workspace : workspace + path.sep;
@@ -159,6 +192,18 @@ function inventory(workspace) {
       try { mtime = fs.statSync(p).mtimeMs; } catch { continue; }
       sessions.push({ path: p, mtime, source: 'cursor', project: sub });
     }
+  }
+
+  // Codex rollouts carry the workspace cwd in their session_meta first line.
+  const xSessions = path.join(CODEX_DIR, 'sessions');
+  for (const p of walkJsonl(xSessions, 6)) {
+    if (!path.basename(p).startsWith('rollout-')) continue;
+    const cwd = codexCwdOf(p);
+    if (!cwd || (cwd !== workspace && !cwd.startsWith(wsPrefix))) continue;
+    const rel = cwd === workspace ? '.' : path.relative(workspace, cwd).split(path.sep)[0];
+    let mtime = 0;
+    try { mtime = fs.statSync(p).mtimeMs; } catch { continue; }
+    sessions.push({ path: p, mtime, source: 'codex', project: rel || '.' });
   }
 
   sessions.sort((a, b) => b.mtime - a.mtime);
@@ -269,6 +314,83 @@ function uninstallCursorHooks(workspace, opts) {
   if (opts.dryRun) { console.log(`[dry-run] would remove ${removed} entr${removed === 1 ? 'y' : 'ies'} from ${hooksPath}`); return; }
   if (removed) writeJsonAtomic(hooksPath, cfg);
   if (removed) console.log(`Removed ${removed} coding-brain hook entr${removed === 1 ? 'y' : 'ies'} from ${hooksPath}`);
+}
+
+// ------------------------------------------------------------ codex support
+// Codex has no hook system. Harvest side: its config.toml `notify` key runs
+// an external program on events like agent-turn-complete — we point it at
+// codex-notify-hook.sh (runtime copy). Recall side: Codex natively reads
+// AGENTS.md from the workspace root, so init plants a managed block there
+// (refreshed after every harvest by distill.sh).
+
+const CODEX_NOTIFY_MARKER = 'codex-notify-hook.sh';
+const CODEX_COMMENT = '# coding-brain harvest hook (managed by coding-brain; `coding-brain uninstall` removes it)';
+
+function installCodexNotify(opts) {
+  const configPath = path.join(CODEX_DIR, 'config.toml');
+  let text = '';
+  try { text = fs.readFileSync(configPath, 'utf8'); } catch { /* fresh config */ }
+  const hookPath = path.join(SCRIPTS, 'codex-notify-hook.sh');
+  const notifyLine = `notify = ["bash", "${hookPath}"]`;
+  const existing = text.match(/^[ \t]*notify[ \t]*=.*$/m);
+  if (existing) {
+    if (existing[0].includes(CODEX_NOTIFY_MARKER)) {
+      console.log(`Codex notify hook already installed in ${configPath}`);
+      return;
+    }
+    // Never clobber a foreign notify program — TOML allows only one.
+    console.log(`Codex config.toml already has a notify entry (${existing[0].trim()}).`);
+    console.log('Not overwriting it. To chain coding-brain manually, make your notify');
+    console.log(`program also run: bash "${hookPath}" (it ignores its argument and exits fast).`);
+    return;
+  }
+  if (opts.dryRun) { console.log(`[dry-run] would prepend notify entry to ${configPath}`); return; }
+  // TOML top-level keys MUST appear before any [table] section, so the
+  // notify line goes at the very top of the file.
+  const out = `${CODEX_COMMENT}\n${notifyLine}\n\n${text}`;
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  const tmp = configPath + '.tmp-' + process.pid;
+  fs.writeFileSync(tmp, out);
+  fs.renameSync(tmp, configPath);
+  console.log(`Installed Codex notify hook in ${configPath}`);
+}
+
+function uninstallCodexNotify(opts) {
+  const configPath = path.join(CODEX_DIR, 'config.toml');
+  let text = '';
+  try { text = fs.readFileSync(configPath, 'utf8'); } catch { return; }
+  const lines = text.split('\n');
+  const kept = lines.filter((l) => {
+    if (/^[ \t]*notify[ \t]*=/.test(l) && l.includes(CODEX_NOTIFY_MARKER)) return false;
+    if (l.trim() === CODEX_COMMENT) return false;
+    return true;
+  });
+  const removed = lines.length - kept.length;
+  if (!removed) return;
+  if (opts.dryRun) { console.log(`[dry-run] would remove notify entry from ${configPath}`); return; }
+  fs.writeFileSync(configPath, kept.join('\n').replace(/^\n+/, ''));
+  console.log(`Removed coding-brain notify entry from ${configPath}`);
+}
+
+function installCodex(workspace, brain, opts) {
+  installCodexNotify(opts);
+  if (opts.dryRun) { console.log(`[dry-run] would write the managed block in ${path.join(workspace, 'AGENTS.md')}`); return; }
+  const r = spawnSync('bash', [path.join(SCRIPTS, 'agents-block.sh'), workspace, brain], { stdio: ['ignore', 'ignore', 'pipe'] });
+  if (r.status === 0) {
+    console.log(`Managed brain block written to ${path.join(workspace, 'AGENTS.md')} (Codex reads it at session start).`);
+  } else {
+    console.log(`AGENTS.md block install failed: ${(r.stderr || '').toString().slice(0, 200)}`);
+  }
+}
+
+function uninstallCodex(workspace, opts) {
+  uninstallCodexNotify(opts);
+  if (opts.dryRun) { console.log('[dry-run] would remove the AGENTS.md managed block'); return; }
+  const agents = path.join(workspace, 'AGENTS.md');
+  if (fs.existsSync(agents) && fs.readFileSync(agents, 'utf8').includes('coding-brain:start')) {
+    spawnSync('bash', [path.join(SCRIPTS, 'agents-block.sh'), '--remove', workspace], { stdio: 'ignore' });
+    console.log(`Removed the coding-brain managed block from ${agents}`);
+  }
 }
 
 // ----------------------------------------------------------- brain scaffold
@@ -395,6 +517,7 @@ async function cmdInit(args) {
   const dryRun = args.includes('--dry-run');
   const hooksOnly = args.includes('--hooks-only');
   const withCursor = args.includes('--cursor');
+  const withCodex = args.includes('--codex');
 
   console.log(`coding-brain init — workspace: ${workspace}\n`);
 
@@ -465,6 +588,15 @@ async function cmdInit(args) {
     if (doCursor) installCursorHooks(workspace, { dryRun });
     else console.log('Skipped Cursor hooks (rerun with --cursor to add them).');
   }
+  if (fs.existsSync(CODEX_DIR)) {
+    let doCodex = withCodex;
+    if (!doCodex && !yes) {
+      const a = (await ask('Codex detected — also enable Codex support (notify hook + AGENTS.md block)? [y/N] ', 'n')).toLowerCase();
+      doCodex = a === 'y' || a === 'yes';
+    }
+    if (doCodex) installCodex(workspace, brain, { dryRun });
+    else console.log('Skipped Codex support (rerun with --codex to add it).');
+  }
 
   // e. Closing line.
   console.log('\nDone. Your next session in this workspace starts already knowing this —');
@@ -488,7 +620,7 @@ function cmdStatus() {
   const digests = countFiles(path.join(brain, 'sessions'), '.md');
   const topics = countFiles(path.join(brain, 'topics'), '.md');
   let harvested = 0;
-  try { harvested = fs.readdirSync(stateDir).filter((f) => /^[0-9a-f-]{36}$/.test(f)).length; } catch { /* no state */ }
+  try { harvested = fs.readdirSync(stateDir).filter((f) => /^([0-9a-f-]{36}|rollout-[^.]+)$/.test(f)).length; } catch { /* no state */ }
   console.log(`Digests: ${digests} · Topics: ${topics} · Sessions harvested: ${harvested}`);
   console.log(`STATE.md: ${fs.existsSync(path.join(brain, 'STATE.md')) ? 'present' : 'missing (first harvest will create it)'}`);
   const r = spawnSync('git', ['-C', brain, 'log', '--oneline', '-5'], { encoding: 'utf8' });
@@ -552,17 +684,19 @@ function cmdUninstall(args) {
   const brain = findBrain(process.cwd());
   const workspace = brain ? path.dirname(brain) : process.cwd();
   uninstallCursorHooks(workspace, { dryRun });
+  uninstallCodex(workspace, { dryRun });
   if (brain) console.log(`Brain left untouched at ${brain} — delete it yourself if you want it gone.`);
 }
 
 // -------------------------------------------------------------------- main
 
-const USAGE = `coding-brain — a compiled brain for Claude Code & Cursor
+const USAGE = `coding-brain — a compiled brain for Claude Code, Cursor & Codex
 
 Usage: coding-brain <command>
 
   init        Scan past transcripts, compile a starter STATE (with consent),
-              and install session hooks. Flags: --yes --dry-run --hooks-only --cursor
+              and install session hooks. Flags: --yes --dry-run --hooks-only
+              --cursor --codex
   status      Brain location, last harvest age, counts, last 5 brain commits
   search <w>  Ranked lexical search over STATE + topics + digests
   log         git log of the brain (one commit per harvest)
