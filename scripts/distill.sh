@@ -165,6 +165,13 @@ if [ "$rc" -eq 0 ]; then
     else
       TITLE=$(git -C "$BRAIN_DIR" diff --cached --name-only | grep '^topics/' | sed 's|topics/||; s|\.md$||' | head -3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')
     fi
+    if [ -z "$TITLE" ]; then
+      # No digest/topic changed (STATE-only harvest): borrow the newest
+      # digest's title so the receipt still reads like news.
+      NEWEST=$(ls -t "$BRAIN_DIR/sessions" 2>/dev/null | head -1)
+      [ -n "$NEWEST" ] && TITLE=$(head -1 "$BRAIN_DIR/sessions/$NEWEST" | sed 's/^# *//' | cut -c1-52)
+      [ -n "$TITLE" ] && TITLE="$TITLE (update)"
+    fi
     [ -z "$TITLE" ] && TITLE="${STEM:0:8}"
     git -C "$BRAIN_DIR" -c user.name="coding-brain" -c user.email="coding-brain@local" \
       commit -qm "harvest: $TITLE" >> "$LOG_FILE" 2>&1
