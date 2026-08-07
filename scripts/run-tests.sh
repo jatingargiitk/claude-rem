@@ -743,6 +743,26 @@ r=1
 [ ! -f "$BRAIN/.state/ui.pid" ] && ! pgrep -f "ui.py $BRAIN" >/dev/null 2>&1 && r=0
 check "init: CODING_BRAIN_NO_UI=1 suppresses the post-install viewer" $r
 
+# --no-hooks: scaffold a brain for a host that drives its own harvests (the herdr
+# plugin) without touching the user's editor config.
+NOHOOKS_WS=$(mktemp -d)
+NOHOOKS_SETTINGS="$NOHOOKS_WS/settings.json"
+echo '{"hooks":{}}' > "$NOHOOKS_SETTINGS"
+NOHOOKS_OUT=$( (cd "$NOHOOKS_WS" && CODING_BRAIN_SETTINGS="$NOHOOKS_SETTINGS" \
+  CODING_BRAIN_CLAUDE_DIR="$FAKEHOME/.claude" \
+  CODING_BRAIN_CURSOR_DIR="$FAKEHOME/.cursor" \
+  CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
+  CODING_BRAIN_NO_UI=1 node "$ROOT/bin/coding-brain.js" \
+  init --yes --hooks-only --no-hooks --no-ui 2>&1) )
+r=1
+[ -d "$NOHOOKS_WS/.coding-brain" ] \
+  && [ -f "$NOHOOKS_WS/.coding-brain/config.json" ] \
+  && [ -d "$NOHOOKS_WS/.coding-brain/.git" ] \
+  && ! grep -q 'harvest-hook.sh' "$NOHOOKS_SETTINGS" \
+  && echo "$NOHOOKS_OUT" | grep -q 'Skipped hook install' && r=0
+check "init --no-hooks: brain scaffolded, editor config untouched" $r
+rm -rf "$NOHOOKS_WS"
+
 # ------------------------------------------------------------------ result
 
 echo

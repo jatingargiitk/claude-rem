@@ -547,6 +547,10 @@ async function cmdInit(args) {
   const yes = args.includes('--yes') || args.includes('-y');
   const dryRun = args.includes('--dry-run');
   const hooksOnly = args.includes('--hooks-only');
+  // For hosts that drive harvests themselves (e.g. the herdr plugin, which fires
+  // on herdr's own agent events). Scaffolds the brain without touching the user's
+  // editor config, so the host stays the single trigger.
+  const noHooks = args.includes('--no-hooks');
   const withCursor = args.includes('--cursor');
   const withCodex = args.includes('--codex');
 
@@ -609,6 +613,9 @@ async function cmdInit(args) {
   }
 
   // d. Hook install (idempotent).
+  if (noHooks) {
+    console.log('Skipped hook install (--no-hooks) — whatever installed this drives the saving.');
+  } else {
   installClaudeHooks({ dryRun });
   if (fs.existsSync(CURSOR_DIR)) {
     let doCursor = withCursor;
@@ -627,6 +634,7 @@ async function cmdInit(args) {
     }
     if (doCodex) installCodex(workspace, brain, { dryRun });
     else console.log('Skipped Codex support (rerun with --codex to add it).');
+  }
   }
 
   // e. Closing line.
@@ -778,7 +786,7 @@ const USAGE = `coding-brain — a compiled brain for Claude Code, Cursor & Codex
 Usage: npx coding-brain <command>
 
   init        Scan past transcripts, compile a starter STATE (with consent),
-              and install session hooks. Flags: --yes --dry-run --hooks-only
+              and install session hooks. Flags: --yes --dry-run --hooks-only --no-hooks
               --cursor --codex --no-ui
   ui          Open the local viewer (Stream/State/Digests/Metrics) in your
               browser. Foreground; Ctrl-C stops it. Flag: --no-open
