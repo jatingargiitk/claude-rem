@@ -2,7 +2,7 @@
 
 # 🧠 coding-brain
 
-**A compiled brain for Claude Code & Cursor. Your agent never starts from zero again.**
+**A compiled brain for Claude Code, Cursor & Codex. Your agent never starts from zero again.**
 
 [![npm](https://img.shields.io/npm/v/coding-brain)](https://www.npmjs.com/package/coding-brain)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
@@ -22,7 +22,7 @@ codebase, your conventions, your way of working.
 ## Quick Start
 
 ```bash
-cd ~/your-workspace        # the directory you open Claude Code / Cursor in
+cd ~/your-workspace        # the directory you open Claude Code / Cursor / Codex in
 npx coding-brain init
 ```
 
@@ -41,8 +41,9 @@ everything is automatic. One command to install, zero commands to use.
 - 📊 **It measures itself.** Hits, misses, and corrections are logged per
   harvest. This is the only memory system I know of that reports its own
   hit rate instead of asking you to trust it.
-- 🔁 **One brain, both tools.** Cursor and Claude Code sessions feed the
-  same store.
+- 🔁 **One brain, all three tools.** Claude Code, Cursor, and Codex sessions
+  feed the same store. Explain something once in any of them and the other
+  two know it.
 - 📁 **Plain files + git.** Markdown you can read, grep, and diff. One git
   commit per harvest, so `coding-brain log` shows exactly what it learned
   and when. Anything wrong is one revert away.
@@ -150,8 +151,11 @@ Every harvest is a git commit. Revert it. A background process that
 rewrites your data without an audit trail is how you lose data quietly,
 which is why the brain is born as a git repo.
 
-**Claude Code or Cursor?**
-Both, one brain. Codex support is next on the roadmap.
+**Claude Code, Cursor, or Codex?**
+All three, one brain. Claude Code and Cursor harvest through session hooks;
+Codex harvests through its `notify` hook and reads the briefing through a
+managed block in `AGENTS.md` (markers only — the rest of your AGENTS.md is
+never touched). Enable it with `coding-brain init --codex`.
 
 ## Requirements
 
@@ -161,9 +165,9 @@ subscription.
 
 ## Roadmap
 
-Codex CLI support · weekly consolidation pass over old digests ·
-miss-escalation (repeated corrections auto-promote to rules) · live
-activity ticker · Windows.
+Weekly consolidation pass over old digests · miss-escalation (repeated
+corrections auto-promote to rules) · live activity ticker · Windows.
+(Codex CLI support: shipped.)
 
 ## Status
 
