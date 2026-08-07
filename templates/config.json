@@ -8,5 +8,6 @@
   "assistantCapChars": 2500,
   "totalCapChars": 400000,
   "liteStateSessions": 15,
-  "liteStateCapChars": 300000
+  "liteStateCapChars": 300000,
+  "liteStatePerSessionChars": 30000
 }

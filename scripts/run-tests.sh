@@ -18,6 +18,8 @@ TESTWS="$ROOT/.testws"
 WS="$TESTWS/ws"
 WS2="$TESTWS/ws2"
 FAKEHOME="$TESTWS/fakehome"
+# Keep the stable-runtime copy inside the test workspace, never the real HOME.
+export CODING_BRAIN_RUNTIME="$TESTWS/runtime"
 STUBBIN="$TESTWS/stubbin"
 CLAUDE_STUB_LOG="$TESTWS/claude-calls.log"
 export CLAUDE_STUB_LOG

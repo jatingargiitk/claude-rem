@@ -24,8 +24,26 @@ const readline = require('readline');
 const { spawnSync, spawn } = require('child_process');
 
 const PKG_ROOT = path.resolve(__dirname, '..');
-const SCRIPTS = path.join(PKG_ROOT, 'scripts');
+const PKG_SCRIPTS = path.join(PKG_ROOT, 'scripts');
 const TEMPLATES = path.join(PKG_ROOT, 'templates');
+
+// Hooks must reference a STABLE path. When run via `npx`, PKG_ROOT lives in
+// the npx cache, which npm can evict at any time — hooks pointing there die
+// silently weeks later. So we copy scripts/ to ~/.coding-brain/runtime/ and
+// point every installed hook at that copy (refreshed on each init/run).
+const RUNTIME_DIR = process.env.CODING_BRAIN_RUNTIME
+  || path.join(os.homedir(), '.coding-brain', 'runtime');
+const SCRIPTS = path.join(RUNTIME_DIR, 'scripts');
+
+function ensureRuntime() {
+  fs.mkdirSync(SCRIPTS, { recursive: true });
+  for (const f of fs.readdirSync(PKG_SCRIPTS)) {
+    const src = path.join(PKG_SCRIPTS, f);
+    const dst = path.join(SCRIPTS, f);
+    fs.copyFileSync(src, dst);
+    fs.chmodSync(dst, 0o755);
+  }
+}
 
 const CLAUDE_DIR = process.env.CODING_BRAIN_CLAUDE_DIR || path.join(os.homedir(), '.claude');
 const CURSOR_DIR = process.env.CODING_BRAIN_CURSOR_DIR || path.join(os.homedir(), '.cursor');
@@ -289,7 +307,26 @@ function scaffoldBrain(workspace) {
 function buildCorpus(brain, workspace, sessions, cfg) {
   const cap = cfg.liteStateCapChars || 300000;
   const maxSessions = cfg.liteStateSessions || 15;
-  const picked = sessions.slice(0, maxSessions);
+  const perSession = cfg.liteStatePerSessionChars || 30000;
+
+  // Project-diverse, recency-weighted selection: round-robin the newest
+  // session from each project so one chatty project (or a few whale
+  // sessions) can't monopolize the briefing. Per-session slices are capped
+  // so the same budget sees 10-15 sessions instead of 3 giant ones.
+  const byProject = new Map();
+  for (const s of sessions) {
+    if (!byProject.has(s.project)) byProject.set(s.project, []);
+    byProject.get(s.project).push(s); // sessions arrive newest-first
+  }
+  const queues = [...byProject.values()];
+  const picked = [];
+  let qi = 0;
+  while (picked.length < maxSessions && queues.some((q) => q.length)) {
+    const q = queues[qi % queues.length];
+    qi++;
+    if (q.length) picked.push(q.shift());
+  }
+
   const stateDir = path.join(brain, '.state');
   const chunks = []; // newest-first budgeting
   let total = 0;
@@ -302,6 +339,9 @@ function buildCorpus(brain, workspace, sessions, cfg) {
     try { text = fs.readFileSync(out, 'utf8'); } catch { continue; }
     fs.rmSync(out, { force: true });
     if (!text.trim()) continue;
+    if (text.length > perSession) {
+      text = text.slice(0, perSession) + '\n[session slice capped]';
+    }
     const header = `\n\n===== SESSION (${s.source}, project: ${s.project}, ${new Date(s.mtime).toISOString().slice(0, 10)}) =====\n\n`;
     if (total + text.length + header.length > cap) {
       const room = cap - total - header.length;
@@ -310,6 +350,7 @@ function buildCorpus(brain, workspace, sessions, cfg) {
     }
     chunks.push({ mtime: s.mtime, body: header + text });
     total += text.length;
+    process.stdout.write(`  read ${s.project} · ${new Date(s.mtime).toISOString().slice(0, 10)} (${Math.round(text.length / 1024)}KB)\n`);
     if (total >= cap) break;
   }
   // Chronological order in the corpus (oldest first) so the newest facts win.
@@ -531,6 +572,7 @@ Usage: coding-brain <command>
 
 (async () => {
   const [cmd, ...args] = process.argv.slice(2);
+  try { ensureRuntime(); } catch { /* stable-copy is best-effort; package scripts remain the source */ }
   switch (cmd) {
     case 'init': await cmdInit(args); break;
     case 'status': cmdStatus(); break;
