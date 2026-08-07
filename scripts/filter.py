@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-"""Condense a Claude Code / Cursor JSONL transcript for distillation.
+"""Condense a Claude Code / Cursor / Codex JSONL transcript for distillation.
 
 Keeps: user messages (full), assistant text (truncated), file-edit targets,
 command names. Drops: tool result dumps, diffs, metadata — the ~90% of bytes
 with near-zero distill value. Deterministic, no LLM, stdlib only.
+
+Formats are auto-detected per line:
+- Claude Code / Cursor: {"message": {"role", "content": [...]}} or
+  {"role", "content"} records.
+- Codex rollout: {"type": "session_meta"|"response_item"|"event_msg"|...,
+  "payload": {...}} — only response_item payloads of type "message"
+  (role user/assistant; role developer = system boilerplate, skipped) and
+  function calls (tool targets) are kept.
 
 Privacy: strips <private>...</private> spans (multiline) BEFORE anything is
 written, so private content never reaches a model. An unclosed <private> tag
@@ -27,6 +35,49 @@ def strip_private(text):
     # Unclosed tag: drop everything from the tag to the end (fail closed).
     text = PRIVATE_OPEN_RE.sub("[private content removed]", text)
     return text
+
+
+# Codex wraps injected boilerplate (AGENTS.md dump, environment context) in
+# user-role messages; they carry zero distill value.
+CODEX_USER_BOILERPLATE = (
+    "<environment_context>",
+    "<user_instructions>",
+    "<turn_context",
+    "# AGENTS.md instructions",
+)
+
+CODEX_LINE_TYPES = ("session_meta", "response_item", "event_msg", "turn_context", "compacted")
+
+
+def codex_entries(rec):
+    """Yield (role, kind, text) from one Codex rollout line, or nothing."""
+    if rec.get("type") != "response_item":
+        return
+    payload = rec.get("payload")
+    if not isinstance(payload, dict):
+        return
+    ptype = payload.get("type")
+    if ptype == "message":
+        role = payload.get("role")
+        if role not in ("user", "assistant"):  # developer = boilerplate
+            return
+        content = payload.get("content")
+        if not isinstance(content, list):
+            return
+        for c in content:
+            if not isinstance(c, dict) or not isinstance(c.get("text"), str):
+                continue
+            text = c["text"]
+            if role == "user" and text.lstrip().startswith(CODEX_USER_BOILERPLATE):
+                continue
+            yield (role, "text", text)
+    elif ptype in ("function_call", "custom_tool_call"):
+        # Best-effort tool target: name + clipped arguments.
+        name = payload.get("name", "?")
+        args = payload.get("arguments")
+        if args is None:
+            args = payload.get("input", "")
+        yield ("assistant", "tool", "%s: %s" % (name, str(args)[:200]))
 
 
 def parts(content):
@@ -66,11 +117,18 @@ def main():
             rec = json.loads(line)
         except json.JSONDecodeError:
             continue
-        msg = rec.get("message") if isinstance(rec.get("message"), dict) else rec
-        role = msg.get("role") or rec.get("role")
-        if role not in ("user", "assistant"):
-            continue
-        for kind, text in parts(msg.get("content")):
+
+        # Auto-detect the record shape (per line, so mixed files still work).
+        if rec.get("type") in CODEX_LINE_TYPES and isinstance(rec.get("payload"), dict):
+            entries = codex_entries(rec)
+        else:
+            msg = rec.get("message") if isinstance(rec.get("message"), dict) else rec
+            role = msg.get("role") or rec.get("role")
+            if role not in ("user", "assistant"):
+                continue
+            entries = ((role, kind, text) for kind, text in parts(msg.get("content")))
+
+        for role, kind, text in entries:
             text = strip_private(text).strip()
             if not text:
                 continue
