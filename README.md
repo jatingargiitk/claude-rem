@@ -50,7 +50,10 @@ everything is automatic. One command to install, zero commands to use.
 - 🔒 **Local and private.** No server, no telemetry, no API key. Wrap
   anything in `<private>...</private>` and it never reaches a model.
 - 🪶 **No daemon, no vector DB, no heavy deps.** Hooks fire, do their job,
-  and exit.
+  and exit. The only long-lived thing is the optional viewer, and only while
+  you're looking at it.
+- 👀 **A viewer you'll actually open.** `coding-brain ui` shows the memory
+  stream, STATE, digests, and hit-rate metrics on a local page.
 
 ## What it looks like
 
@@ -79,6 +82,17 @@ brain checked the repo, found only a README, and wrote "not yet scaffolded"
 instead of believing the story. And that port-5057 rule exists because the
 user typed one line, `brain miss: I had to re-explain we use port 5057`,
 and it became permanent.
+
+## See it
+
+```bash
+coding-brain ui
+```
+
+Opens a local page (127.0.0.1 only) with the memory stream — one entry per
+harvest, what changed, when — plus the live STATE, every digest, search, and
+the hit/miss metrics. `init` opens it once at the end so your install lands
+on a visual, not terminal text. It runs in the foreground; Ctrl-C closes it.
 
 ## How it works
 
@@ -150,6 +164,13 @@ simply grows from your next session.
 Every harvest is a git commit. Revert it. A background process that
 rewrites your data without an audit trail is how you lose data quietly,
 which is why the brain is born as a git repo.
+
+**"No daemon" — so what is the viewer?**
+A plain python3 http.server on 127.0.0.1 that runs while you're looking at
+it: `coding-brain ui` holds your terminal until Ctrl-C, and the copy init
+starts lives only until you stop it (`coding-brain uninstall`) or reboot.
+Nothing else is ever resident — harvests are hook-triggered processes that
+exit when done.
 
 **Claude Code, Cursor, or Codex?**
 All three, one brain. Claude Code and Cursor harvest through session hooks;
