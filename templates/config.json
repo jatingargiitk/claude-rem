@@ -1,5 +1,7 @@
 {
-  "model": "claude-sonnet-5",
+  "model": "claude-haiku-4-5-20251001",
+  "modelLarge": "claude-sonnet-5",
+  "largeSessionBytes": 60000,
   "harvestThresholdBytes": 25000,
   "failureBackoffMinutes": 10,
   "staleLockMinutes": 30,

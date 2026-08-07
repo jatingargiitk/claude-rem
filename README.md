@@ -132,6 +132,9 @@ The rest exist so you can watch it work and leave whenever you want.
 Nothing beyond the Claude subscription you already pay for. One `claude -p`
 call per debounced session-end, on your own logged-in CLI. No API key, no
 separate billing, no background LLM stream burning tokens while you work.
+And it's quota-friendly by default: routine sessions harvest on Haiku (the
+cheapest model), and only big decision-heavy sessions escalate to Sonnet.
+Both are configurable in `.coding-brain/config.json`.
 
 **Does my code leave my machine?**
 Only to your own Claude subscription for the distill call, which is where
