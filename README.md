@@ -52,8 +52,8 @@ everything is automatic. One command to install, zero commands to use.
 - 🪶 **No daemon, no vector DB, no heavy deps.** Hooks fire, do their job,
   and exit. The only long-lived thing is the optional viewer, and only while
   you're looking at it.
-- 👀 **A viewer you'll actually open.** `coding-brain ui` shows the memory
-  stream, STATE, digests, and hit-rate metrics on a local page.
+- 👀 **A viewer you'll actually open.** `npx coding-brain ui` shows what it
+  knows and what it's learned on one calm local page.
 
 ## What it looks like
 
@@ -86,13 +86,14 @@ and it became permanent.
 ## See it
 
 ```bash
-coding-brain ui
+npx coding-brain ui
 ```
 
-Opens a local page (127.0.0.1 only) with the memory stream — one entry per
-harvest, what changed, when — plus the live STATE, every digest, search, and
-the hit/miss metrics. `init` opens it once at the end so your install lands
-on a visual, not terminal text. It runs in the foreground; Ctrl-C closes it.
+Opens one calm local page (127.0.0.1 only): a freshness line, a search box,
+a collapsed "what it knows right now" card, and the feed of what it's
+learned — click any row to read the full note inline. `init` opens it once
+at the end so your install lands on a visual, not terminal text. It runs in
+the foreground; Ctrl-C closes it.
 
 ## How it works
 
@@ -131,12 +132,13 @@ memory. A cleaner one is.
 You only ever need the first one.
 
 ```
-coding-brain init        # scan history, compile starter STATE, install hooks
-coding-brain status      # is it alive, what does it hold, last commits
-coding-brain search <w>  # ranked search over everything it knows
-coding-brain log         # what it learned, when
-coding-brain harvest     # force a harvest right now
-coding-brain uninstall   # removes hooks; your brain files stay put
+npx coding-brain init        # scan history, compile starter briefing, install hooks
+npx coding-brain ui          # open the local viewer
+npx coding-brain status      # is it alive, what does it hold, last commits
+npx coding-brain search <w>  # ranked search over everything it knows
+npx coding-brain log         # what it learned, when
+npx coding-brain harvest     # force a harvest right now
+npx coding-brain uninstall   # removes hooks; your brain files stay put
 ```
 
 The rest exist so you can watch it work and leave whenever you want.
@@ -167,8 +169,8 @@ which is why the brain is born as a git repo.
 
 **"No daemon" — so what is the viewer?**
 A plain python3 http.server on 127.0.0.1 that runs while you're looking at
-it: `coding-brain ui` holds your terminal until Ctrl-C, and the copy init
-starts lives only until you stop it (`coding-brain uninstall`) or reboot.
+it: `npx coding-brain ui` holds your terminal until Ctrl-C, and the copy init
+starts lives only until you stop it (`npx coding-brain uninstall`) or reboot.
 Nothing else is ever resident — harvests are hook-triggered processes that
 exit when done.
 
@@ -176,7 +178,7 @@ exit when done.
 All three, one brain. Claude Code and Cursor harvest through session hooks;
 Codex harvests through its `notify` hook and reads the briefing through a
 managed block in `AGENTS.md` (markers only — the rest of your AGENTS.md is
-never touched). Enable it with `coding-brain init --codex`.
+never touched). Enable it with `npx coding-brain init --codex`.
 
 ## Requirements
 

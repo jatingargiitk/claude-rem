@@ -346,7 +346,10 @@ function uninstallCursorHooks(workspace, opts) {
 // (refreshed after every harvest by distill.sh).
 
 const CODEX_NOTIFY_MARKER = 'codex-notify-hook.sh';
-const CODEX_COMMENT = '# coding-brain harvest hook (managed by coding-brain; `coding-brain uninstall` removes it)';
+const CODEX_COMMENT = '# coding-brain harvest hook (managed by coding-brain; `npx coding-brain uninstall` removes it)';
+// Pre-0.1.6 installs wrote the comment without the npx prefix — uninstall
+// must still recognize and remove it.
+const CODEX_COMMENT_LEGACY = '# coding-brain harvest hook (managed by coding-brain; `coding-brain uninstall` removes it)';
 
 function installCodexNotify(opts) {
   const configPath = path.join(CODEX_DIR, 'config.toml');
@@ -384,7 +387,7 @@ function uninstallCodexNotify(opts) {
   const lines = text.split('\n');
   const kept = lines.filter((l) => {
     if (/^[ \t]*notify[ \t]*=/.test(l) && l.includes(CODEX_NOTIFY_MARKER)) return false;
-    if (l.trim() === CODEX_COMMENT) return false;
+    if (l.trim() === CODEX_COMMENT || l.trim() === CODEX_COMMENT_LEGACY) return false;
     return true;
   });
   const removed = lines.length - kept.length;
@@ -586,19 +589,19 @@ async function cmdInit(args) {
     const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
     const { corpusPath, sessions: n, chars } = buildCorpus(brain, workspace, sessions, cfg);
     if (n === 0) {
-      console.log('No usable transcript content after filtering — skipping lite STATE.');
+      console.log('No usable transcript content after filtering — skipping the starter briefing.');
     } else {
-      console.log(`Compiling lite STATE from ${n} session(s) (${Math.round(chars / 1000)}KB condensed) — one model call, ~1-3 min...`);
+      console.log(`Reading your ${n} most recent sessions and writing your starter briefing (one model call, ~1-3 min)...`);
       const res = runLiteState(brain, workspace, corpusPath, n);
       if (res.ok && fs.existsSync(path.join(brain, 'STATE.md'))) {
         spawnSync('git', ['-C', brain, 'add', '-A'], { stdio: 'ignore' });
         spawnSync('git', ['-C', brain, '-c', 'user.name=coding-brain', '-c', 'user.email=coding-brain@local',
           'commit', '-qm', `init: lite STATE from ${n} sessions`], { stdio: 'ignore' });
-        console.log('\n===== STATE.md =====\n');
+        console.log('\n===== Your starter briefing =====\n');
         console.log(fs.readFileSync(path.join(brain, 'STATE.md'), 'utf8'));
-        console.log('====================\n');
+        console.log('=================================\n');
       } else {
-        console.log(`Lite STATE failed (${res.err || 'no STATE.md produced'}) — continuing with hooks-only install. Run \`coding-brain harvest\` later to retry.`);
+        console.log(`Starter briefing failed (${res.err || 'nothing was written'}) — continuing with hooks-only install. Run \`npx coding-brain harvest\` later to retry.`);
       }
     }
   } else if (!compile) {
@@ -628,8 +631,8 @@ async function cmdInit(args) {
 
   // e. Closing line.
   console.log('\nDone. Your next session in this workspace starts already knowing this —');
-  console.log('every session end harvests new knowledge automatically (debounced, in the background).');
-  console.log('Check anytime: coding-brain status | coding-brain search <words> | coding-brain log');
+  console.log('after every session it quietly updates what it knows (in the background).');
+  console.log('Check anytime: npx coding-brain status | npx coding-brain search <words> | npx coding-brain log');
 
   // f. Post-install viewer — the install ends on a visual, not terminal text.
   // Detached so init can exit; killed by `uninstall`, gone on reboot, and
@@ -646,7 +649,7 @@ async function cmdInit(args) {
         child.unref();
         fs.writeFileSync(path.join(brain, '.state', 'ui.pid'), String(child.pid));
         const url = `http://127.0.0.1:${port}`;
-        console.log(`\nViewer: ${url} (\`coding-brain ui\` to reopen later)`);
+        console.log(`\nViewer: ${url} (\`npx coding-brain ui\` to reopen later)`);
         // Give the server a beat to bind before the browser hits it.
         setTimeout(() => openBrowser(url), 700);
       }
@@ -658,7 +661,7 @@ async function cmdInit(args) {
 
 function cmdStatus() {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found (run `coding-brain init` in your workspace root)');
+  if (!brain) die('no .coding-brain found (run `npx coding-brain init` in your workspace root)');
   console.log(`Brain: ${brain}`);
   const stateDir = path.join(brain, '.state');
   let ts = 0;
@@ -685,7 +688,7 @@ function cmdStatus() {
 function cmdSearch(args) {
   const brain = findBrain(process.cwd());
   if (!brain) die('no .coding-brain found');
-  if (!args.length) die('usage: coding-brain search <words...>');
+  if (!args.length) die('usage: npx coding-brain search <words...>');
   const r = spawnSync('bash', [path.join(SCRIPTS, 'search.sh'), ...args],
     { stdio: 'inherit', env: { ...process.env, BRAIN_DIR: brain } });
   process.exit(r.status || 0);
@@ -700,7 +703,7 @@ function cmdLog() {
 
 function cmdHarvest() {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found (run `coding-brain init` first)');
+  if (!brain) die('no .coding-brain found (run `npx coding-brain init` first)');
   const workspace = path.dirname(brain);
   const stateDir = path.join(brain, '.state');
   const sessions = inventory(workspace);
@@ -755,7 +758,7 @@ function stopUi(brain, opts) {
 
 async function cmdUi(args) {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found here — run `coding-brain init` in your workspace first, then `coding-brain ui`');
+  if (!brain) die('no .coding-brain found here — run `npx coding-brain init` in your workspace first, then `npx coding-brain ui`');
   const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
   const port = await findFreePort(cfg.uiPort || 4180);
   const url = port ? `http://127.0.0.1:${port}` : null;
@@ -772,7 +775,7 @@ async function cmdUi(args) {
 
 const USAGE = `coding-brain — a compiled brain for Claude Code, Cursor & Codex
 
-Usage: coding-brain <command>
+Usage: npx coding-brain <command>
 
   init        Scan past transcripts, compile a starter STATE (with consent),
               and install session hooks. Flags: --yes --dry-run --hooks-only
