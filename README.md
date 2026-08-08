@@ -149,9 +149,18 @@ The rest exist so you can watch it work and leave whenever you want.
 Nothing beyond the Claude subscription you already pay for. One `claude -p`
 call per debounced session-end, on your own logged-in CLI. No API key, no
 separate billing, no background LLM stream burning tokens while you work.
-And it's quota-friendly by default: routine sessions harvest on Haiku (the
-cheapest model), and only big decision-heavy sessions escalate to Sonnet.
-Both are configurable in `.coding-brain/config.json`.
+
+**Model tiering (smart cost management):** Routine sessions harvest on Haiku
+(cheap), while published/shipped work auto-upgrades to Sonnet. The harvester
+detects these signals automatically:
+- **Published:** `npm publish`, `vercel deploy`, git tags, releases
+- **Shipped:** commits to main/master
+- **Complex:** sessions >100KB, security/breaking-change keywords
+- **Custom:** optional `~/.coding-brain/config.json` for workspace-specific rules
+
+Copy `config.example.json` to `.coding-brain/config.json` to customize which
+paths and keywords trigger Sonnet vs Haiku. Or skip it and rely on the
+built-in signals — they work for everyone.
 
 **Does my code leave my machine?**
 Only to your own Claude subscription for the distill call, which is where

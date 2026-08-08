@@ -1,0 +1,18 @@
+{
+  "tiering": {
+    "sonnet_paths": [
+      "src/core/",
+      "critical-infrastructure/"
+    ],
+    "sonnet_keywords": [
+      "security",
+      "customer data",
+      "breaking change"
+    ],
+    "haiku_paths": [
+      "tests/",
+      "docs/",
+      "refactor"
+    ]
+  }
+}
