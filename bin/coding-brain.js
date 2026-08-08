@@ -437,6 +437,23 @@ function scaffoldBrain(workspace) {
   if (!fs.existsSync(notes)) {
     fs.writeFileSync(notes, '# Quick notes (pending harvest)\n\nAdd bullets here mid-session; the next harvest folds them into STATE and clears them.\n');
   }
+  // Create initial STATE.md so fresh brains don't look empty
+  const stateFile = path.join(brain, 'STATE.md');
+  if (!fs.existsSync(stateFile)) {
+    const initialState = `# Brain State
+
+**Created:** ${new Date().toISOString()}
+
+## Summary
+Fresh brain, ready to learn from your agent sessions.
+
+## Next Steps
+- Run agents (Claude Code, Cursor, Codex, etc.)
+- Brain auto-saves on every session finish
+- Optionally backfill past sessions to jump-start learning
+`;
+    fs.writeFileSync(stateFile, initialState);
+  }
   const gi = path.join(brain, '.gitignore');
   if (!fs.existsSync(gi)) fs.writeFileSync(gi, '.state/\n');
   // Version the brain from day one; one commit per harvest afterwards.
