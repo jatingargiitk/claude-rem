@@ -43,9 +43,10 @@ except Exception:
 PY
 }
 
-MODEL=$(cfg model claude-haiku-4-5-20251001)
-MODEL_LARGE=$(cfg modelLarge claude-sonnet-5)
-LARGE_SESSION_BYTES=$(cfg largeSessionBytes 60000)
+# Quality-first, no cheap tier. A shallow digest is worse than no digest: it
+# writes confident-sounding wrong facts into STATE that every later session
+# then trusts. Override with config.json `model` if you want something else.
+MODEL=$(cfg model claude-sonnet-5)
 STALE_LOCK_MIN=$(cfg staleLockMinutes 30)
 ASSISTANT_CAP=$(cfg assistantCapChars 2500)
 TOTAL_CAP=$(cfg totalCapChars 400000)
@@ -120,16 +121,10 @@ export CODING_BRAIN_HARVEST=1
 
 # NOTE: `< /dev/null` is mandatory — `claude -p` eats inherited stdin, which
 # hangs/steals input when spawned from a hook or a read loop.
-# Quota-friendly by default: cheap model for routine sessions, the larger
-# model only when the condensed session is big enough to carry real
-# decisions. Users can pin either via config.json (model / modelLarge).
 FILTERED_BYTES=$(wc -c < "$FILTERED" 2>/dev/null | tr -d ' ')
 case "$FILTERED_BYTES" in (*[!0-9]*|"") FILTERED_BYTES=0;; esac
 RUN_MODEL="$MODEL"
-if [ "$FILTERED_BYTES" -ge "$LARGE_SESSION_BYTES" ]; then
-  RUN_MODEL="$MODEL_LARGE"
-fi
-echo "$(date '+%F %T') model=$RUN_MODEL (filtered ${FILTERED_BYTES}b, threshold ${LARGE_SESSION_BYTES}b)" >> "$LOG_FILE"
+echo "$(date '+%F %T') model=$RUN_MODEL (filtered ${FILTERED_BYTES}b)" >> "$LOG_FILE"
 
 RAW=$(claude -p "$PROMPT" --model "$RUN_MODEL" \
   --setting-sources "" \

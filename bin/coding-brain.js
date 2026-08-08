@@ -469,9 +469,18 @@ Fresh brain, ready to learn from your agent sessions.
 // -------------------------------------------------------------- lite STATE
 
 function buildCorpus(brain, workspace, sessions, cfg) {
-  const cap = cfg.liteStateCapChars || 300000;
-  const maxSessions = cfg.liteStateSessions || 15;
+  const cap = cfg.liteStateCapChars || 600000;
   const perSession = cfg.liteStatePerSessionChars || 30000;
+
+  // Budget = "everything from the last N days, but never fewer than M sessions".
+  // A recency window alone starves a user who was away last week; a flat count
+  // alone truncates a heavy week. Take whichever is larger. The char cap below
+  // is the real backstop, so a busy fortnight can't blow up the one model call.
+  const windowDays = cfg.liteStateWindowDays || 7;
+  const minSessions = cfg.liteStateSessions || 30;
+  const cutoff = Date.now() - windowDays * 86400 * 1000;
+  const inWindow = sessions.filter((s) => s.mtime >= cutoff).length;
+  const maxSessions = Math.max(inWindow, minSessions);
 
   // Selection = coverage + recency, in that order:
   //   Pass 1: ONE slot per project (its newest session) — every project gets
@@ -536,15 +545,29 @@ function runLiteState(brain, workspace, corpusPath, nSessions) {
 
 You are given a corpus of the ${nSessions} most recent coding-agent sessions in this workspace (pre-condensed to user messages, assistant text, and tool targets; newest session LAST — when sessions conflict, the newest wins). Read it at: ${corpusPath}
 
-Read ${path.join(brain, 'INSTRUCTIONS.md')} for the STATE.md format (Step 3) and the privacy rules, then write ONE file: ${path.join(brain, 'STATE.md')}
+Each session in the corpus is delimited by a line of the form:
+  ===== SESSION (<source>, project: <project>, YYYY-MM-DD) =====
 
-Rules:
-- STATE.md is a ~100-line current-truth dashboard: Active projects, Conventions, Open threads.
-- ORDER BY RECENCY: list Active projects newest-activity-first; the project the user worked on most recently comes first and gets the most detail. A project whose sessions are all noticeably older than the rest (roughly 3+ weeks stale) is NOT active — give it a single line under a "Dormant" heading instead, no matter how much corpus text it has. Corpus volume is a sampling artifact, not importance.
+Read ${path.join(brain, 'INSTRUCTIONS.md')} first — it defines the privacy rules and the exact format for all three file types. Then build the FULL brain, in this order:
+
+1. SESSION DIGESTS (INSTRUCTIONS.md Step 1) — write to ${path.join(brain, 'sessions')}/YYYY-MM-DD-<short-slug>.md
+   One digest per session block in the corpus, dated by that block's date.
+   EXCEPTION: if several blocks share the same date AND project, merge them into a single digest for that day — don't emit near-duplicate files.
+   Skip a block entirely if it has no durable content (trivial one-off questions, no decisions, nothing shipped). A skipped session is better than a padded digest.
+
+2. TOPIC NOTES (INSTRUCTIONS.md Step 1.5) — write to ${path.join(brain, 'topics')}/<project>.md
+   One rolling note per project that appears in the corpus, compiled across ALL of that project's sessions (not per-session). This is the layer future sessions actually read — spend your effort here.
+
+3. STATE.md (INSTRUCTIONS.md Step 3) — write to ${path.join(brain, 'STATE.md')}
+   Write this LAST, so it summarizes what you just compiled.
+   A ~100-line current-truth dashboard: Active projects, Conventions, Open threads.
+   ORDER BY RECENCY: Active projects newest-activity-first; the most recently worked project comes first and gets the most detail. A project whose sessions are all noticeably older than the rest (roughly 3+ weeks stale) is NOT active — give it a single line under a "Dormant" heading, no matter how much corpus text it has. Corpus volume is a sampling artifact, not importance.
+
+Rules that apply to every file:
 - Compile, don't narrate. Facts and decisions only; date facts that can go stale.
-- The corpus is historical: prefer the newest session's version of any fact; mark things you cannot confirm as "unverified:" or "as of <date>".
+- The corpus is historical: prefer the newest session's version of any fact; mark anything you cannot confirm as "unverified:" or "as of <date>".
 - Never store secrets/keys/tokens; reference env var names only.
-- Write only that one file, then stop.`;
+- Write only inside ${brain}. Do not touch anything else, then stop.`;
   // `< /dev/null` equivalent: stdin ignored — claude -p eats inherited stdin.
   const r = spawnSync('claude', ['-p', prompt,
     '--model', model,
@@ -612,25 +635,19 @@ async function cmdInit(args) {
     if (n === 0) {
       console.log('No usable transcript content after filtering — skipping the starter briefing.');
     } else {
-      console.log(`Reading your ${n} most recent sessions and writing your starter briefing (one model call, ~1-3 min)...`);
+      console.log(`Reading your ${n} most recent sessions and compiling your brain — digests, topic notes, and the briefing (one model call, ~2-5 min)...`);
       const res = runLiteState(brain, workspace, corpusPath, n);
+      // STATE.md is written LAST by the compile step, so its existence also
+      // means the digest and topic passes ran — no separate check needed.
       if (res.ok && fs.existsSync(path.join(brain, 'STATE.md'))) {
+        const count = (d) => { try { return fs.readdirSync(path.join(brain, d)).filter((f) => f.endsWith('.md')).length; } catch { return 0; } };
         spawnSync('git', ['-C', brain, 'add', '-A'], { stdio: 'ignore' });
         spawnSync('git', ['-C', brain, '-c', 'user.name=coding-brain', '-c', 'user.email=coding-brain@local',
-          'commit', '-qm', `init: lite STATE from ${n} sessions`], { stdio: 'ignore' });
+          'commit', '-qm', `init: brain compiled from ${n} sessions`], { stdio: 'ignore' });
+        console.log(`\nBrain compiled: ${count('sessions')} session digest(s), ${count('topics')} topic note(s).`);
         console.log('\n===== Your starter briefing =====\n');
         console.log(fs.readFileSync(path.join(brain, 'STATE.md'), 'utf8'));
         console.log('=================================\n');
-
-        // e. Create session digests from past sessions (full brain, not just STATE)
-        console.log('Creating session digests from your past work (this may take a minute)...');
-        const harvest = spawnSync(process.execPath, [path.join(SCRIPTS, 'distill.sh'), corpusPath, workspace],
-          { stdio: 'inherit', env: { ...process.env, CODING_BRAIN_NO_UI: '1' } });
-        if (harvest.status === 0) {
-          console.log('✓ Brain is now fully populated with your session history.\n');
-        } else {
-          console.log('Note: session digests will be created from your next session forward.\n');
-        }
       } else {
         console.log(`Starter briefing failed (${res.err || 'nothing was written'}) — continuing with hooks-only install. Run \`npx coding-brain harvest\` later to retry.`);
       }

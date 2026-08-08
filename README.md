@@ -150,17 +150,14 @@ Nothing beyond the Claude subscription you already pay for. One `claude -p`
 call per debounced session-end, on your own logged-in CLI. No API key, no
 separate billing, no background LLM stream burning tokens while you work.
 
-**Model tiering (smart cost management):** Routine sessions harvest on Haiku
-(cheap), while published/shipped work auto-upgrades to Sonnet. The harvester
-detects these signals automatically:
-- **Published:** `npm publish`, `vercel deploy`, git tags, releases
-- **Shipped:** commits to main/master
-- **Complex:** sessions >100KB, security/breaking-change keywords
-- **Custom:** optional `~/.coding-brain/config.json` for workspace-specific rules
-
-Copy `config.example.json` to `.coding-brain/config.json` to customize which
-paths and keywords trigger Sonnet vs Haiku. Or skip it and rely on the
-built-in signals — they work for everyone.
+**Why no cheap-model tier?** Because a shallow digest is worse than no digest.
+The brain's whole job is to be the thing later sessions trust without
+re-checking — a cheap model writes confident-sounding wrong facts into STATE,
+and every session after it inherits them. So every harvest runs on the best
+model the host offers (Sonnet 5 on Claude Code and Cursor, GPT-5.4 on Codex).
+It's one call per debounced session-end, not a token stream, so the cost of
+being right is small. Pin something else with `model` in
+`.coding-brain/config.json` if you disagree.
 
 **Does my code leave my machine?**
 Only to your own Claude subscription for the distill call, which is where

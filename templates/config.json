@@ -1,14 +1,13 @@
 {
-  "model": "claude-haiku-4-5-20251001",
-  "modelLarge": "claude-sonnet-5",
-  "largeSessionBytes": 60000,
+  "model": "claude-sonnet-5",
   "harvestThresholdBytes": 25000,
   "failureBackoffMinutes": 10,
   "staleLockMinutes": 30,
   "assistantCapChars": 2500,
   "totalCapChars": 400000,
   "uiPort": 4180,
-  "liteStateSessions": 15,
-  "liteStateCapChars": 300000,
+  "liteStateWindowDays": 7,
+  "liteStateSessions": 30,
+  "liteStateCapChars": 600000,
   "liteStatePerSessionChars": 30000
 }

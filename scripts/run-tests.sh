@@ -493,9 +493,10 @@ check "init: inventory finds claude + cursor + codex sessions for this workspace
 
 r=1
 grep -q "helloworldfact" "$BRAIN/STATE.md" \
-  && git -C "$BRAIN" log --oneline | grep -q "init: lite STATE" \
+  && git -C "$BRAIN" log --oneline | grep -q "init: brain compiled from" \
+  && echo "$INIT_OUT" | grep -q "Brain compiled: .* session digest(s), .* topic note(s)." \
   && echo "$INIT_OUT" | grep -q "===== Your starter briefing =====" && r=0
-check "init: lite STATE compiled (one stubbed model call) + committed + printed" $r
+check "init: brain compiled (one stubbed model call) + committed + printed" $r
 
 r=1
 grep -q 'scripts/harvest-hook.sh' "$FAKE_SETTINGS3" && grep -q 'scripts/recall-hook.sh' "$FAKE_SETTINGS3" && r=0
