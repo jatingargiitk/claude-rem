@@ -1,6 +1,6 @@
 {
   "model": "claude-sonnet-5",
-  "harvestThresholdBytes": 25000,
+  "harvestThresholdBytes": 40000,
   "failureBackoffMinutes": 10,
   "staleLockMinutes": 30,
   "assistantCapChars": 2500,
