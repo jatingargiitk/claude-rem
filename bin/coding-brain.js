@@ -621,6 +621,16 @@ async function cmdInit(args) {
         console.log('\n===== Your starter briefing =====\n');
         console.log(fs.readFileSync(path.join(brain, 'STATE.md'), 'utf8'));
         console.log('=================================\n');
+
+        // e. Create session digests from past sessions (full brain, not just STATE)
+        console.log('Creating session digests from your past work (this may take a minute)...');
+        const harvest = spawnSync(process.execPath, [path.join(SCRIPTS, 'distill.sh'), corpusPath, workspace],
+          { stdio: 'inherit', env: { ...process.env, CODING_BRAIN_NO_UI: '1' } });
+        if (harvest.status === 0) {
+          console.log('✓ Brain is now fully populated with your session history.\n');
+        } else {
+          console.log('Note: session digests will be created from your next session forward.\n');
+        }
       } else {
         console.log(`Starter briefing failed (${res.err || 'nothing was written'}) — continuing with hooks-only install. Run \`npx coding-brain harvest\` later to retry.`);
       }
