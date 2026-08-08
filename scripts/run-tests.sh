@@ -318,7 +318,7 @@ r=1
 [ "$(claude_calls)" -eq 0 ] && [ ! -f "$BRAIN/.state/$UUID1" ] && r=0
 check "harvest: debounce below threshold (no spawn)" $r
 
-# Pad the transcript past the 25KB threshold.
+# Pad the transcript past the harvest threshold.
 python3 - "$CLAUDE_T" <<'PY'
 import json, sys
 path = sys.argv[1]
@@ -326,7 +326,7 @@ with open(path) as fh:
     first = json.loads(fh.readline())
 cwd = first["cwd"]
 with open(path, "a") as fh:
-    for i in range(40):
+    for i in range(120):  # must exceed harvestThresholdBytes (templates/config.json)
         rec = {"type": "assistant", "cwd": cwd, "sessionId": "s",
                "message": {"role": "assistant",
                            "content": [{"type": "text", "text": "filler analysis step %d " % i + "y" * 700}]}}
@@ -395,7 +395,7 @@ check "verify: evidence snapshot written with git summary" $r
 python3 - "$CURSOR_T" <<'PY'
 import json, sys
 with open(sys.argv[1], "a") as fh:
-    for i in range(40):
+    for i in range(120):  # must exceed harvestThresholdBytes (templates/config.json)
         rec = {"role": "assistant", "message": {"role": "assistant",
                "content": [{"type": "text", "text": "cursor filler %d " % i + "z" * 700}]}}
         fh.write(json.dumps(rec) + "\n")
@@ -561,7 +561,7 @@ check "codex-notify: debounce below threshold (no spawn)" $r
 python3 - "$CODEX_T" <<'PY'
 import json, sys
 with open(sys.argv[1], "a") as fh:
-    for i in range(40):
+    for i in range(120):  # must exceed harvestThresholdBytes (templates/config.json)
         rec = {"timestamp": "t", "type": "response_item",
                "payload": {"type": "message", "role": "assistant",
                            "content": [{"type": "output_text", "text": "codex filler %d " % i + "w" * 700}]}}
@@ -637,7 +637,7 @@ with open(path) as fh:
     first = json.loads(fh.readline())
 cwd = first["cwd"]
 with open(path, "a") as fh:
-    for i in range(40):
+    for i in range(120):  # must exceed harvestThresholdBytes (templates/config.json)
         rec = {"type": "assistant", "cwd": cwd, "sessionId": "s",
                "message": {"role": "assistant",
                            "content": [{"type": "text", "text": "refresh filler %d " % i + "q" * 700}]}}
