@@ -173,7 +173,14 @@ if [ "$rc" -eq 0 ]; then
     CHANGED=$(git -C "$BRAIN_DIR" diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
   fi
   short=$(echo "$CHANGED" | tr ' ' '\n' | sed 's|.*/||; s|\.md$||' | grep -v '^$' | head -4 | tr '\n' ',' | sed 's/,$//; s/,/, /g')
-  notify "coding-brain" "Harvested: ${TITLE:-${STEM:0:8}} — updated: ${short:-nothing new}"
+  # Routine success is silent by default. A harvest fires after most sessions,
+  # so notifying on each one trains you to ignore the notification — and then
+  # you miss the failures, which are the only ones you can act on. The receipt
+  # line at the start of your next session already reports freshness. Opt back
+  # in with "notifyOnSuccess": true in config.json.
+  if [ "$(cfg notifyOnSuccess false)" = "true" ]; then
+    notify "coding-brain" "Harvested: ${TITLE:-${STEM:0:8}} — updated: ${short:-nothing new}"
+  fi
   # Codex reads AGENTS.md natively (no injection hook): refresh the managed
   # receipt block if the user enabled Codex support (markers present). Cheap,
   # deterministic, no model call — and never creates the file uninvited.
