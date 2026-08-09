@@ -274,7 +274,33 @@ check "recall: injects receipt + STATE + rules + notes + search instruction" $r
 RC2=$(printf '{"session_id":"sess-recall-1","cwd":"%s"}' "$WS" | bash "$SCRIPTS/recall-hook.sh")
 r=1
 [ -z "$RC2" ] && r=0
-check "recall: injects only once per session" $r
+check "recall: full STATE dump only once per session" $r
+
+# Follow-up prompts are relevance-gated: silent unless the prompt matches a
+# topic note, so the brain stays invisible when it has nothing to add.
+RC2B=$(printf '{"session_id":"sess-recall-1","cwd":"%s","prompt":"what is the weather in paris"}' "$WS" \
+  | bash "$SCRIPTS/recall-hook.sh")
+r=1
+[ -z "$RC2B" ] && r=0
+check "recall: follow-up with no topic match injects nothing" $r
+
+# 'alphaword' appears only in topics/proj.md, so it must select that note.
+RC2C=$(printf '{"session_id":"sess-recall-1","cwd":"%s","prompt":"remind me about alphaword in proj"}' "$WS" \
+  | bash "$SCRIPTS/recall-hook.sh")
+r=1
+echo "$RC2C" | grep -q "brain: last harvest" \
+  && echo "$RC2C" | grep -q "Relevant topic note: topics/proj.md" \
+  && echo "$RC2C" | grep -q "alphaword only here" \
+  && ! echo "$RC2C" | grep -q "STATEMARKER" && r=0
+check "recall: follow-up with a topic match injects receipt + that note only" $r
+
+# Same topic again in the same session: name it, don't re-send the body.
+RC2D=$(printf '{"session_id":"sess-recall-1","cwd":"%s","prompt":"more on alphaword in proj"}' "$WS" \
+  | bash "$SCRIPTS/recall-hook.sh")
+r=1
+echo "$RC2D" | grep -q "already in context this session: topics/proj.md" \
+  && ! echo "$RC2D" | grep -q "alphaword only here" && r=0
+check "recall: a topic body is injected at most once per session" $r
 
 touch "$BRAIN/.state/last_failure"
 RC3=$(printf '{"session_id":"sess-recall-2","cwd":"%s"}' "$WS" | bash "$SCRIPTS/recall-hook.sh")
