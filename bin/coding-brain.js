@@ -813,16 +813,30 @@ async function cmdInit(args) {
   // c. Lite STATE — ONE model call over the most recent sessions.
   if (compile && sessions.length) {
     const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
-    // Window/floor: everything from the last N days, never fewer than M.
+    // Selection: recency window ∪ per-project floor ∪ global floor.
+    // The window alone fails "where did I leave X" questions - X is often 2-3
+    // weeks old (measured: the iris export, shipped 14 days back, fell outside
+    // a 7-day window and the brain could only punt). So every project also
+    // contributes its newest K sessions regardless of age.
     const windowDays = cfg.liteStateWindowDays || 7;
     const minSessions = cfg.liteStateSessions || 30;
+    const projectFloor = cfg.fanoutProjectFloor || 3;
     const cutoff = Date.now() - windowDays * 86400 * 1000;
-    const n = Math.max(sessions.filter((x) => x.mtime >= cutoff).length, Math.min(minSessions, sessions.length));
+    const chosen = new Set();
+    sessions.forEach((x, i) => { if (x.mtime >= cutoff) chosen.add(i); });
+    const perProj = {};
+    sessions.forEach((x, i) => {
+      perProj[x.project] = (perProj[x.project] || 0);
+      if (perProj[x.project] < projectFloor) { chosen.add(i); perProj[x.project]++; }
+    });
+    for (let i = 0; i < sessions.length && chosen.size < minSessions; i++) chosen.add(i);
+    const selected = sessions.filter((_, i) => chosen.has(i));
+    const n = selected.length;
     if (n === 0) {
       console.log('No usable transcript content after filtering — skipping the starter briefing.');
     } else {
       console.log(`Compiling your brain from ${n} session(s) - digests, topic notes, and the briefing...`);
-      const res = await fanoutCompile(brain, workspace, sessions.slice(0, n), cfg);
+      const res = await fanoutCompile(brain, workspace, selected, cfg);
       if (res.digests > 0 && fs.existsSync(path.join(brain, 'STATE.md'))) {
         spawnSync('git', ['-C', brain, 'add', '-A'], { stdio: 'ignore' });
         spawnSync('git', ['-C', brain, '-c', 'user.name=coding-brain', '-c', 'user.email=coding-brain@local',
@@ -1029,19 +1043,19 @@ function runProbe(question, context, workspace, model, allowTools, brainDir, str
     // greps .coding-brain/ and answers from the same notes the other side was
     // handed — which measures injection-vs-retrieval, not brain-vs-no-brain.
     // Caught this the first time the command ran: side A cited "the brain notes".
-    // BOTH sides get the identical deny list. If only the blind side is
-    // restricted, the harness measures tool access, not memory — the first
-    // --strict run denied A's Bash while B kept it, and A spent 25 turns
-    // failing to answer a question B answered from `git status`.
-    // Bash subcommand denies are deliberately absent: they knocked out
-    // Bash(git *) as collateral and made the blind side useless.
-    const deny = [
-      `Read(${brainDir}/**)`,
-      `Read(${path.join(workspace, '.cursor')}/**)`,
-      `Read(${path.join(workspace, '.claude')}/**)`,
-    ];
+    // Harness v3: brain DIRS are physically hidden by the caller during both
+    // probes - Read denies could not stop Bash `cat` (measured: brain content
+    // in 4/10 "blind" answers in run 2). What remains is only the strict-mode
+    // deny on hand-written notes files; Bash can still cat those two, a known
+    // residual flagged in reports.
+    const deny = [];
+    if (brainDir) {
+      deny.push(`Read(${brainDir}/**)`,
+        `Read(${path.join(workspace, '.cursor')}/**)`,
+        `Read(${path.join(workspace, '.claude')}/**)`);
+    }
     if (strict) deny.push('Read(**/CLAUDE.md)', 'Read(**/AGENTS.md)');
-    argv.push('--disallowedTools', deny.join(','));
+    if (deny.length) argv.push('--disallowedTools', deny.join(','));
   }
   const started = Date.now();
   const r = spawnSync('claude', argv, {
@@ -1095,8 +1109,14 @@ function cmdAb(args) {
   console.log('Running A (blind) and B (with brain)...\n');
   // Side A is denied the brain on disk; side B gets it injected. Same model,
   // same everything else.
-  const a = runProbe(question, null,    workspace, model, allowTools, brain, strict);
-  const b = runProbe(question, context, workspace, model, allowTools, brain, strict);
+  const hidden = hideBrains(workspace, brain);
+  let a, b;
+  try {
+    a = runProbe(question, null,    workspace, model, allowTools, null, strict);
+    b = runProbe(question, context, workspace, model, allowTools, null, strict);
+  } finally {
+    restoreBrains(hidden);
+  }
 
   const show = (label, r) => {
     console.log('='.repeat(72));
@@ -1138,6 +1158,34 @@ const EVAL_SEED = {
     { q: 'How should I add a new page to the app?', kind: 'architecture' },
   ],
 };
+
+// Physically remove the memory systems from disk for the duration of a probe
+// pair. Rename-in-place (same parent) so restore is atomic; if a live hook
+// recreated a dir while hidden, that recreation is a fresh scaffold - discard
+// it and restore the original.
+function hideBrains(workspace, brain) {
+  const targets = [brain,
+    path.join(workspace, '.cursor', 'brain'),
+    path.join(workspace, '.claude', 'brain')];
+  const hidden = [];
+  for (const t of targets) {
+    if (!t || !fs.existsSync(t)) continue;
+    const away = t + '.eval-hidden-' + process.pid;
+    fs.renameSync(t, away);
+    hidden.push([t, away]);
+  }
+  return hidden;
+}
+function restoreBrains(hidden) {
+  for (const [orig, away] of hidden) {
+    try {
+      if (fs.existsSync(orig)) fs.rmSync(orig, { recursive: true, force: true });
+      fs.renameSync(away, orig);
+    } catch (e) {
+      console.error(`RESTORE FAILED for ${orig} - recover manually from ${away}: ${e.message}`);
+    }
+  }
+}
 
 function judge(question, ans1, ans2, model) {
   const prompt = `[coding-brain:meta]\nYou are grading two answers to the same question from an engineer's workspace. You do NOT have access to the workspace, so do not guess at ground truth — grade what you can actually assess.
@@ -1212,8 +1260,14 @@ function cmdEval(args) {
     });
     const context = (hook.stdout || '').trim();
 
-    const a = runProbe(q, null, workspace, model, true, brain, strict);
-    const b = runProbe(q, context, workspace, model, true, brain, strict);
+    const hidden = hideBrains(workspace, brain);
+    let a, b;
+    try {
+      a = runProbe(q, null, workspace, model, true, null, strict);
+      b = runProbe(q, context, workspace, model, true, null, strict);
+    } finally {
+      restoreBrains(hidden);
+    }
 
     // Randomise presentation order — an LLM judge shown the same side first
     // every time will drift toward it regardless of content.
