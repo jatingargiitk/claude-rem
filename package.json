@@ -1,6 +1,6 @@
 {
   "name": "coding-brain",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "A compiled brain for Claude Code & Cursor — memory that rewrites itself into current truth, verified against git, and measures its own hit rate.",
   "keywords": [
     "claude",
