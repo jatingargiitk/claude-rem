@@ -174,6 +174,17 @@ with open(out, "w") as fh:
         fh.write(json.dumps(r) + "\n")
 PY
 
+# A meta transcript (harvester exhaust) in the same store — inventory must
+# skip it, which the "Found 3 past session(s)" assertion below now proves.
+python3 - "$WS" "$FAKEHOME/.claude/projects/testproj/dddddddd-dddd-dddd-dddd-dddddddddddd.jsonl" <<'MPY'
+import json, sys
+ws, out = sys.argv[1], sys.argv[2]
+rec = {"type": "user", "cwd": ws, "sessionId": "meta",
+       "message": {"role": "user", "content": [{"type": "text",
+         "text": "You are the coding-brain harvester, a headless background agent."}]}}
+open(out, "w").write(json.dumps(rec) + "\n")
+MPY
+
 CLAUDE_T="$FAKEHOME/.claude/projects/testproj/$UUID1.jsonl"
 MUNGED=$(echo "$WS" | sed 's|^/||; s|/|-|g')
 CURSOR_T="$FAKEHOME/.cursor/projects/$MUNGED/agent-transcripts/$UUID2/$UUID2.jsonl"

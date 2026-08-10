@@ -177,6 +177,27 @@ function walkJsonl(dir, depth) {
   return out;
 }
 
+// Transcripts produced by coding-brain itself — harvester runs, backfill
+// compiles, ab/eval probes — land in the same stores as real sessions and
+// carry the same cwd. Left in, they inflate the corpus (measured: 131 of 339
+// "sessions" in one workspace were exhaust) and the backfill then spends real
+// model budget compiling the brain's own diary. Sniff the head and skip.
+const META_MARKERS = [
+  'You are the coding-brain harvester',
+  'You are initializing a coding brain',
+  '[coding-brain:meta]',
+];
+function isMetaTranscript(p) {
+  try {
+    const fd = fs.openSync(p, 'r');
+    const buf = Buffer.alloc(65536);
+    const n = fs.readSync(fd, buf, 0, buf.length, 0);
+    fs.closeSync(fd);
+    const head = buf.toString('utf8', 0, n);
+    return META_MARKERS.some((m) => head.includes(m));
+  } catch { return false; }
+}
+
 function inventory(workspace) {
   const sessions = []; // {path, mtime, source, project}
   const wsPrefix = workspace.endsWith(path.sep) ? workspace : workspace + path.sep;
@@ -194,6 +215,7 @@ function inventory(workspace) {
       const rel = cwd === workspace ? '.' : path.relative(workspace, cwd).split(path.sep)[0];
       let mtime = 0;
       try { mtime = fs.statSync(p).mtimeMs; } catch { continue; }
+      if (isMetaTranscript(p)) continue;
       sessions.push({ path: p, mtime, source: 'claude', project: rel || '.' });
     }
   }
@@ -212,7 +234,8 @@ function inventory(workspace) {
       const p = path.join(tDir, e, e + '.jsonl');
       let mtime = 0;
       try { mtime = fs.statSync(p).mtimeMs; } catch { continue; }
-      sessions.push({ path: p, mtime, source: 'cursor', project: sub });
+      if (isMetaTranscript(p)) continue;
+    sessions.push({ path: p, mtime, source: 'cursor', project: sub });
     }
   }
 
@@ -225,6 +248,7 @@ function inventory(workspace) {
     const rel = cwd === workspace ? '.' : path.relative(workspace, cwd).split(path.sep)[0];
     let mtime = 0;
     try { mtime = fs.statSync(p).mtimeMs; } catch { continue; }
+    if (isMetaTranscript(p)) continue;
     sessions.push({ path: p, mtime, source: 'codex', project: rel || '.' });
   }
 
@@ -833,6 +857,8 @@ async function cmdUi(args) {
 // repo" — an agent that can grep its way to the answer doesn't need a brain.
 
 function runProbe(question, context, workspace, model, allowTools, brainDir, strict) {
+  // Self-tag so inventory() can exclude probe transcripts from future corpora.
+  question = '[coding-brain:meta]\n' + question;
   const prompt = context
     ? `${context}\n\n---\n\n${question}`
     : question;
@@ -954,7 +980,7 @@ const EVAL_SEED = {
 };
 
 function judge(question, ans1, ans2, model) {
-  const prompt = `You are grading two answers to the same question from an engineer's workspace. You do NOT have access to the workspace, so do not guess at ground truth — grade what you can actually assess.
+  const prompt = `[coding-brain:meta]\nYou are grading two answers to the same question from an engineer's workspace. You do NOT have access to the workspace, so do not guess at ground truth — grade what you can actually assess.
 
 QUESTION:
 ${question}
