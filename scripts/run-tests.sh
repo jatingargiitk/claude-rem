@@ -264,7 +264,7 @@ check "search: brain discovery by walking up from cwd" $r
 
 RC=$(printf '{"session_id":"sess-recall-1","cwd":"%s"}' "$WS" | bash "$SCRIPTS/recall-hook.sh")
 r=1
-echo "$RC" | grep -q "brain: last harvest" \
+echo "$RC" | grep -q "brain → " \
   && echo "$RC" | grep -q "STATEMARKER" \
   && echo "$RC" | grep -q "PENDINGNOTE" \
   && echo "$RC" | grep -q "RULEMARKER" \
@@ -288,7 +288,7 @@ check "recall: follow-up with no topic match injects nothing" $r
 RC2C=$(printf '{"session_id":"sess-recall-1","cwd":"%s","prompt":"remind me about alphaword in proj"}' "$WS" \
   | bash "$SCRIPTS/recall-hook.sh")
 r=1
-echo "$RC2C" | grep -q "brain: last harvest" \
+echo "$RC2C" | grep -q "brain → " \
   && echo "$RC2C" | grep -q "Relevant topic note: topics/proj.md" \
   && echo "$RC2C" | grep -q "alphaword only here" \
   && ! echo "$RC2C" | grep -q "STATEMARKER" && r=0
@@ -322,7 +322,7 @@ echo "$CRC" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 ctx = d.get('additional_context', '')
-assert 'STATEMARKER' in ctx and 'brain: last harvest' in ctx
+assert 'STATEMARKER' in ctx and 'brain → ' in ctx
 " >/dev/null 2>&1 && r=0
 check "cursor-recall: valid JSON with additional_context" $r
 
@@ -629,7 +629,7 @@ r=1
 [ "$(grep -c 'coding-brain:start' "$WS/AGENTS.md")" -eq 1 ] \
   && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" \
   && grep -q 'STATE.md' "$WS/AGENTS.md" \
-  && grep -q 'brain: last harvest' "$WS/AGENTS.md" && r=0
+  && grep -q 'brain → ' "$WS/AGENTS.md" && r=0
 check "codex install: AGENTS.md managed block created once, user content kept" $r
 
 # A foreign notify entry must never be overwritten (TOML allows only one).

@@ -832,7 +832,7 @@ async function cmdUi(args) {
 // isn't "does context beat nothing", it's "does context beat just reading the
 // repo" — an agent that can grep its way to the answer doesn't need a brain.
 
-function runProbe(question, context, workspace, model, allowTools, brainDir) {
+function runProbe(question, context, workspace, model, allowTools, brainDir, strict) {
   const prompt = context
     ? `${context}\n\n---\n\n${question}`
     : question;
@@ -843,10 +843,19 @@ function runProbe(question, context, workspace, model, allowTools, brainDir) {
     // greps .coding-brain/ and answers from the same notes the other side was
     // handed — which measures injection-vs-retrieval, not brain-vs-no-brain.
     // Caught this the first time the command ran: side A cited "the brain notes".
-    if (brainDir) {
-      argv.push('--disallowedTools',
-        `Read(${brainDir}/**),Read(${path.join(workspace, '.cursor/brain')}/**),Bash(cat *),Bash(grep *)`);
-    }
+    // BOTH sides get the identical deny list. If only the blind side is
+    // restricted, the harness measures tool access, not memory — the first
+    // --strict run denied A's Bash while B kept it, and A spent 25 turns
+    // failing to answer a question B answered from `git status`.
+    // Bash subcommand denies are deliberately absent: they knocked out
+    // Bash(git *) as collateral and made the blind side useless.
+    const deny = [
+      `Read(${brainDir}/**)`,
+      `Read(${path.join(workspace, '.cursor')}/**)`,
+      `Read(${path.join(workspace, '.claude')}/**)`,
+    ];
+    if (strict) deny.push('Read(**/CLAUDE.md)', 'Read(**/AGENTS.md)');
+    argv.push('--disallowedTools', deny.join(','));
   }
   const started = Date.now();
   const r = spawnSync('claude', argv, {
@@ -871,34 +880,37 @@ function runProbe(question, context, workspace, model, allowTools, brainDir) {
 function cmdAb(args) {
   const flags = args.filter((a) => a.startsWith('--'));
   const question = args.filter((a) => !a.startsWith('--')).join(' ').trim();
-  if (!question) die('usage: npx coding-brain ab "<question>" [--no-tools] [--model <m>]');
+  if (!question) die('usage: npx coding-brain ab "<question>" [--strict] [--no-tools] [--model <m>]');
 
-  const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found (run `npx coding-brain init` first)');
-  const workspace = path.dirname(brain);
+  const bi = args.indexOf('--brain');
+  const brain = bi >= 0 ? path.resolve(args[bi + 1]) : findBrain(process.cwd());
+  if (!brain || !fs.existsSync(brain)) die('no brain found (run `npx coding-brain init`, or pass --brain <path>)');
+  const workspace = bi >= 0 ? process.cwd() : path.dirname(brain);
   const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
   const mi = flags.indexOf('--model');
   const model = mi >= 0 ? args[args.indexOf('--model') + 1] : (cfg.model || 'claude-sonnet-5');
   const allowTools = !flags.includes('--no-tools');
+  const strict = flags.includes('--strict');
 
   // Capture exactly what a real session would be given: run the recall hook
   // with a throwaway session id so it emits the full dump, not a follow-up.
   const hook = spawnSync('bash', [path.join(SCRIPTS, 'recall-hook.sh')], {
     input: JSON.stringify({ session_id: 'ab-probe-' + process.pid, cwd: workspace, prompt: question }),
     encoding: 'utf8',
+    env: { ...process.env, CODING_BRAIN_DIR: brain },
   });
   const context = (hook.stdout || '').trim();
   if (!context) die('the recall hook produced nothing — is STATE.md present?');
 
   console.log(`Question: ${question}`);
-  console.log(`Model: ${model} · tools: ${allowTools ? 'read-only workspace, brain dirs denied to A' : 'none'}`);
+  console.log(`Model: ${model} · tools: ${allowTools ? (strict ? 'source only for A (all notes denied)' : 'repo for A, brain dirs denied') : 'none'}`);
   console.log(`Injected context: ${context.length.toLocaleString()} chars\n`);
 
   console.log('Running A (blind) and B (with brain)...\n');
   // Side A is denied the brain on disk; side B gets it injected. Same model,
   // same everything else.
-  const a = runProbe(question, null, workspace, model, allowTools, brain);
-  const b = runProbe(question, context, workspace, model, allowTools, null);
+  const a = runProbe(question, null,    workspace, model, allowTools, brain, strict);
+  const b = runProbe(question, context, workspace, model, allowTools, brain, strict);
 
   const show = (label, r) => {
     console.log('='.repeat(72));
@@ -921,6 +933,145 @@ function cmdAb(args) {
   console.log('If only 3 applies, the brain saved time, not correctness. That is a weaker claim.');
 }
 
+// -------------------------------------------------------------------- eval
+// A/B across a whole question set, with a blind judge.
+//
+// One comparison tells you nothing — Sonnet is non-deterministic and a single
+// question can favour either side by luck. This runs the set, randomises which
+// answer the judge sees first (position bias is real and large), and reports
+// per-category results, because the interesting finding is never "the brain is
+// good/bad" — it's "the brain helps on X and hurts on Y".
+
+const EVAL_SEED = {
+  questions: [
+    { q: 'The export file is not getting generated. Where do I start looking?', kind: 'debug' },
+    { q: 'What version of coding-brain is live on npm, and is local ahead of it?', kind: 'status' },
+    { q: 'How do I publish the coding-brain npm package without it silently failing?', kind: 'procedure' },
+    { q: 'Where does the app get deployed, and what breaks if I deploy the obvious way?', kind: 'procedure' },
+    { q: 'What is still unfinished on the newest feature?', kind: 'status' },
+    { q: 'How should I add a new page to the app?', kind: 'architecture' },
+  ],
+};
+
+function judge(question, ans1, ans2, model) {
+  const prompt = `You are grading two answers to the same question from an engineer's workspace. You do NOT have access to the workspace, so do not guess at ground truth — grade what you can actually assess.
+
+QUESTION:
+${question}
+
+RESPONSE 1:
+${ans1}
+
+RESPONSE 2:
+${ans2}
+
+Grade on:
+- responsive: does it answer the question ACTUALLY ASKED? Watch for an answer that is competent but quietly addresses a slightly different question.
+- specific: concrete paths, commands, names — versus generic advice that would fit any codebase.
+- honest: does it distinguish what it verified from what it is assuming? Unmarked confident claims are a defect, not a strength.
+
+Reply with ONLY a JSON object, no prose:
+{"winner": 1 | 2 | 0, "responsive": 1 | 2 | 0, "specific": 1 | 2 | 0, "honest": 1 | 2 | 0, "why": "<one sentence>", "wrong_frame": 1 | 2 | 0}
+0 means tie. "wrong_frame" flags a response that answered a subtly different question than the one asked (0 if neither did).`;
+  const r = spawnSync('claude', ['-p', prompt, '--model', model, '--setting-sources', '', '--output-format', 'json'],
+    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CODING_BRAIN_HARVEST: '1' }, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+  if (r.status !== 0) return null;
+  try {
+    const text = JSON.parse(r.stdout).result || '';
+    const m = text.match(/\{[\s\S]*\}/);
+    return m ? JSON.parse(m[0]) : null;
+  } catch { return null; }
+}
+
+function cmdEval(args) {
+  const flags = args.filter((a) => a.startsWith('--'));
+  const bi = args.indexOf('--brain');
+  const brain = bi >= 0 ? path.resolve(args[bi + 1]) : findBrain(process.cwd());
+  if (!brain || !fs.existsSync(brain)) die('no brain found (run `npx coding-brain init`, or pass --brain <path>)');
+  const workspace = bi >= 0 ? process.cwd() : path.dirname(brain);
+  const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
+  const model = cfg.model || 'claude-sonnet-5';
+  const strict = flags.includes('--strict');
+
+  // The question set belongs to the WORKSPACE, not to whichever brain is under
+  // test — otherwise --brain silently swaps the questions too and you compare
+  // two brains on two different sets, which is worse than not measuring at all.
+  const si = args.indexOf('--set');
+  const wsBrain = findBrain(process.cwd());
+  const setPath = si >= 0 ? path.resolve(args[si + 1])
+    : path.join(wsBrain || brain, 'evals.json');
+  if (!fs.existsSync(setPath)) {
+    writeJsonAtomic(setPath, EVAL_SEED);
+    console.log(`Seeded ${setPath} — edit it to match the questions you actually ask, then re-run.\n`);
+  }
+  const set = readJsonSoft(setPath, EVAL_SEED).questions || [];
+  if (!set.length) die(`no questions in ${setPath}`);
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const outDir = path.join(brain, '.state', 'evals', stamp);
+  fs.mkdirSync(outDir, { recursive: true });
+
+  console.log(`Running ${set.length} question(s) · model ${model} · strict=${strict}`);
+  console.log(`Transcripts: ${outDir}\n`);
+
+  const rows = [];
+  set.forEach((item, i) => {
+    const q = item.q;
+    process.stdout.write(`[${i + 1}/${set.length}] ${item.kind || '-'} · ${q.slice(0, 58)}...\n`);
+
+    const hook = spawnSync('bash', [path.join(SCRIPTS, 'recall-hook.sh')], {
+      input: JSON.stringify({ session_id: `eval-${stamp}-${i}`, cwd: workspace, prompt: q }),
+      encoding: 'utf8',
+      env: { ...process.env, CODING_BRAIN_DIR: brain },
+    });
+    const context = (hook.stdout || '').trim();
+
+    const a = runProbe(q, null, workspace, model, true, brain, strict);
+    const b = runProbe(q, context, workspace, model, true, brain, strict);
+
+    // Randomise presentation order — an LLM judge shown the same side first
+    // every time will drift toward it regardless of content.
+    const bFirst = Math.random() < 0.5;
+    const v = judge(q, bFirst ? (b.text || '') : (a.text || ''), bFirst ? (a.text || '') : (b.text || ''), model);
+    const decode = (n) => (n === 0 || n == null ? '-' : ((n === 1) === bFirst ? 'brain' : 'blind'));
+
+    fs.writeFileSync(path.join(outDir, `q${i + 1}.md`),
+      `# ${q}\n\nkind: ${item.kind}\nbFirst: ${bFirst}\n\n## A (blind) [${a.turns} turns, ${(a.ms / 1000).toFixed(1)}s]\n\n${a.text || a.err}\n\n## B (brain) [${b.turns} turns, ${(b.ms / 1000).toFixed(1)}s]\n\n${b.text || b.err}\n\n## Judge\n\n${JSON.stringify(v, null, 2)}\n`);
+
+    rows.push({
+      kind: item.kind || '-',
+      winner: decode(v && v.winner),
+      responsive: decode(v && v.responsive),
+      wrongFrame: decode(v && v.wrong_frame),
+      aTurns: a.turns, bTurns: b.turns,
+      aMs: a.ms, bMs: b.ms,
+      why: (v && v.why) || '',
+    });
+  });
+
+  console.log('\n' + '='.repeat(78));
+  console.log('kind          winner   responsive  wrong-frame   turns b/a     time b/a');
+  console.log('-'.repeat(78));
+  for (const r of rows) {
+    console.log(
+      `${r.kind.padEnd(13)} ${String(r.winner).padEnd(8)} ${String(r.responsive).padEnd(11)} ` +
+      `${String(r.wrongFrame).padEnd(13)} ${String(r.bTurns ?? '?')}/${r.aTurns ?? '?'}`.padEnd(66 - 52 + 14) +
+      `  ${(r.bMs / 1000).toFixed(0)}s/${(r.aMs / 1000).toFixed(0)}s`);
+  }
+  console.log('='.repeat(78));
+
+  const tally = (k, v) => rows.filter((r) => r[k] === v).length;
+  console.log(`\nwins        brain ${tally('winner', 'brain')} · blind ${tally('winner', 'blind')} · tie ${tally('winner', '-')}`);
+  console.log(`wrong frame brain ${tally('wrongFrame', 'brain')} · blind ${tally('wrongFrame', 'blind')}`);
+  const byKind = [...new Set(rows.map((r) => r.kind))];
+  for (const k of byKind) {
+    const sub = rows.filter((r) => r.kind === k);
+    console.log(`  ${k.padEnd(13)} brain ${sub.filter((r) => r.winner === 'brain').length}/${sub.length}`);
+  }
+  console.log(`\nThe judge grades responsiveness and honesty, NOT ground truth — it cannot`);
+  console.log(`see your workspace. Read ${outDir} before trusting any row.`);
+}
+
 // -------------------------------------------------------------------- main
 
 const USAGE = `coding-brain — a compiled brain for Claude Code, Cursor & Codex
@@ -938,7 +1089,10 @@ Usage: npx coding-brain <command>
   harvest     Force-harvest the newest unharvested transcript now
   ab <q>      Ask one question twice — blind vs with the brain — same model and
               tools on both sides, so you can see what the brain is worth.
-              Flags: --no-tools --model <m>
+              Flags: --strict --no-tools --model <m> --brain <path>
+  eval        Run the whole question set (.coding-brain/evals.json) A/B with a
+              blind judge; reports per-category results.
+              Flags: --strict --brain <path> --set <file>
   uninstall   Remove coding-brain hooks (brain dir is left untouched)
 `;
 
@@ -953,6 +1107,7 @@ Usage: npx coding-brain <command>
     case 'log': cmdLog(); break;
     case 'harvest': cmdHarvest(); break;
     case 'ab': cmdAb(args); break;
+    case 'eval': cmdEval(args); break;
     case 'uninstall': cmdUninstall(args); break;
     default: console.log(USAGE); process.exit(cmd ? 1 : 0);
   }

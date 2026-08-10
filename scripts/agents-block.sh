@@ -53,7 +53,8 @@ warn=""
 if [ -f "$BRAIN_DIR/.state/last_failure" ]; then
   warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.coding-brain/.state/harvest.log)"
 fi
-receipt="🧠 brain: last harvest ${freshness}${lastlearn:+ · $lastlearn}${warn}"
+ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
+receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
 
 BLOCK="$START_MARK
 ## Coding brain (managed block — refreshed automatically, do not edit)

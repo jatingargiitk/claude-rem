@@ -27,11 +27,17 @@ EOF
 [ -z "$cwd" ] && cwd="$PWD"
 
 # Find the workspace brain (walk up, like git discovery).
-root="$cwd"
-while [ "$root" != "/" ] && [ ! -d "$root/.coding-brain" ]; do
-  root=$(dirname "$root")
-done
-BRAIN_DIR="$root/.coding-brain"
+# CODING_BRAIN_DIR pins an explicit brain (used by `ab`/`eval` to point at a
+# different brain than the one discovery would find). Normal sessions never set it.
+if [ -n "${CODING_BRAIN_DIR:-}" ] && [ -d "${CODING_BRAIN_DIR}" ]; then
+  BRAIN_DIR="$CODING_BRAIN_DIR"
+else
+  root="$cwd"
+  while [ "$root" != "/" ] && [ ! -d "$root/.coding-brain" ]; do
+    root=$(dirname "$root")
+  done
+  BRAIN_DIR="$root/.coding-brain"
+fi
 STATE_FILE="$BRAIN_DIR/STATE.md"
 [ -d "$BRAIN_DIR" ] || exit 0
 [ -f "$STATE_FILE" ] || exit 0
@@ -68,7 +74,11 @@ warn=""
 if [ -f "$BRAIN_DIR/.state/last_failure" ]; then
   warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.coding-brain/.state/harvest.log)"
 fi
-receipt="🧠 brain: last harvest ${freshness}${lastlearn:+ · $lastlearn}${warn}"
+# The receipt names what is being handed to the model, not machine telemetry.
+# "last harvest 2m ago · <commit title>" told the user about the pipeline;
+# they asked - repeatedly - to be told what context was fetched instead.
+ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
+receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
 
 # --- Follow-up prompts: relevance-gated, or silent. ------------------------
 # After the first prompt the full STATE dump is already in context, so re-sending
@@ -132,6 +142,8 @@ PY
 
   echo "[CODING BRAIN] This prompt matches what the brain already knows. Compiled from previous sessions — treat as a starting point and re-check when it matters."
   echo
+  topics_csv=$(echo "$matched" | sed 's/\.md$//' | paste -sd ', ' -)
+  receipt="🧠 brain → ${topics_csv}${warn}"
   echo "Open THIS reply with the line below verbatim, then a blank line, then your answer. Do not print it in replies where it was not provided:"
   echo "$receipt"
 
