@@ -44,7 +44,7 @@ fi
 ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
 receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
 
-ctx="[CODING BRAIN] Persistent context for this workspace, distilled from previous sessions. Harvest reconciles claims against git/file evidence before promoting to STATE — still treat this as a starting point and re-check when it matters.
+ctx="[CODING BRAIN] Compiled memory from previous sessions — LEADS, not findings. Open threads are starting points: investigate, do not recite. Verify status claims before repeating them. Answer the question as asked, at the size asked.
 
 In the VERY FIRST reply of this session ONLY, open with this receipt line verbatim (then a blank line, then your answer). NEVER repeat it in any later reply of this conversation:
 $receipt

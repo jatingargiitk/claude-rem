@@ -74,6 +74,42 @@ git -C "$WS" -c user.name=t -c user.email=t@t commit -qm "init"
 cat > "$STUBBIN/claude" <<'STUB'
 #!/bin/bash
 echo "CALL $*" >> "$CLAUDE_STUB_LOG"
+json() { python3 -c 'import json,sys; print(json.dumps({"result": sys.stdin.read(), "total_cost_usd": 0.01, "num_turns": 1, "duration_ms": 10}))'; }
+case "$*" in
+  *"compiling session digests"*)
+    json <<'EOT'
+FILE: 2026-08-01-stub-fanout.md
+# Stub fanout digest
+Date: 2026-08-01
+Project: ws
+
+## What happened
+- fanout stub digest body
+EOT
+    exit 0 ;;
+  *"project/topic notes"*)
+    json <<'EOT'
+FILE: proj.md
+# proj
+Updated: 2026-08-01
+
+## Current state
+- fanout stub topic body
+EOT
+    exit 0 ;;
+  *"Write the workspace STATE file"*)
+    json <<'EOT'
+# Coding Brain — Workspace State
+Last updated: 2026-08-01
+
+## Active projects
+- **ws**: helloworldfact — hello-world script lives in hello.py
+
+## Open threads
+- none
+EOT
+    exit 0 ;;
+esac
 if [ -n "${BRAIN_DIR:-}" ]; then
   mkdir -p "$BRAIN_DIR/sessions" "$BRAIN_DIR/topics"
   cat > "$BRAIN_DIR/sessions/2026-01-01-stub-harvest.md" <<'EOF'
@@ -533,7 +569,7 @@ grep -q "helloworldfact" "$BRAIN/STATE.md" \
   && git -C "$BRAIN" log --oneline | grep -q "init: brain compiled from" \
   && echo "$INIT_OUT" | grep -q "Brain compiled: .* session digest(s), .* topic note(s)." \
   && echo "$INIT_OUT" | grep -q "===== Your starter briefing =====" && r=0
-check "init: brain compiled (one stubbed model call) + committed + printed" $r
+check "init: fan-out compiled digests+topics+STATE (3 stubbed calls) + committed + printed" $r
 
 r=1
 grep -q 'scripts/harvest-hook.sh' "$FAKE_SETTINGS3" && grep -q 'scripts/recall-hook.sh' "$FAKE_SETTINGS3" && r=0
@@ -684,7 +720,7 @@ run_cli "$FAKE_SETTINGS3" harvest >/dev/null
 r=1
 ! grep -q "TAMPERED" "$WS/AGENTS.md" \
   && grep -q 'coding-brain:start' "$WS/AGENTS.md" \
-  && grep -q 'compiled current-truth briefing' "$WS/AGENTS.md" \
+  && grep -q 'LEADS, not findings' "$WS/AGENTS.md" \
   && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" && r=0
 check "distill: refreshes AGENTS.md managed block after harvest" $r
 

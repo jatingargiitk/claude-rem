@@ -140,7 +140,9 @@ PY
 
   [ -n "$matched" ] || exit 0
 
-  echo "[CODING BRAIN] This prompt matches what the brain already knows. Compiled from previous sessions — treat as a starting point and re-check when it matters."
+  cat <<'PREAMBLE'
+[CODING BRAIN] This prompt matches notes from previous sessions — LEADS, not findings. Use them to start the investigation, not to skip it; verify any status claim before repeating it; answer the question as asked, at the size asked.
+PREAMBLE
   echo
   topics_csv=$(echo "$matched" | sed 's/\.md$//' | paste -sd ', ' -)
   receipt="🧠 brain → ${topics_csv}${warn}"
@@ -167,7 +169,13 @@ PY
   exit 0
 fi
 
-echo "[CODING BRAIN] Persistent context for this workspace, distilled from previous sessions. Harvest reconciles claims against git/file evidence before promoting to STATE — still treat this as a starting point and re-check when it matters."
+cat <<'PREAMBLE'
+[CODING BRAIN] Compiled memory from previous sessions. These are LEADS, not findings. Rules:
+1. Open threads are STARTING points — if asked about a known problem, investigate and make new progress; reciting that it is open is not an answer.
+2. Status claims here (versions, counts, what is unfinished) may be stale — verify against the workspace before repeating one.
+3. Answer the question AS ASKED. If this memory frames the topic differently than the user did, the user's framing wins.
+4. Size the answer to the question, not to this context — a simple question deserves a simple answer even if the memory around it is elaborate.
+PREAMBLE
 echo
 echo "Open THIS reply with the line below verbatim, then a blank line, then your answer. Do not print it in replies where it was not provided:"
 echo "$receipt"

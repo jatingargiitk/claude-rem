@@ -562,6 +562,164 @@ function buildCorpus(brain, workspace, sessions, cfg) {
   return { corpusPath, sessions: chunks.length, chars: total };
 }
 
+// ---------------------------------------------------------- fan-out compile
+// Cold start as MANY single-turn calls, not one agentic loop. Measured basis:
+// one agentic harvest averages $1.65 over 22 turns (27 receipts); the same
+// digest work as a single turn with content inlined costs $0.20 (live receipt)
+// - an 8x difference that decides whether cold start is ~$3 or ~$60. The
+// orchestrator writes all files; the model only ever returns text.
+
+function claudeOnce(prompt, model) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const child = spawn('claude', ['-p', prompt, '--model', model,
+      '--setting-sources', '', '--output-format', 'json'],
+      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CODING_BRAIN_HARVEST: '1' } });
+    let out = '', err = '';
+    child.stdout.on('data', (d) => { out += d; });
+    child.stderr.on('data', (d) => { err += d; });
+    child.on('close', (code) => {
+      const ms = Date.now() - t0;
+      if (code !== 0) return resolve({ ok: false, err: err.slice(0, 300), ms, cost: 0 });
+      try {
+        const d = JSON.parse(out);
+        resolve({ ok: true, text: d.result || '', cost: d.total_cost_usd || 0, ms });
+      } catch { resolve({ ok: false, err: 'unparseable output', ms, cost: 0 }); }
+    });
+  });
+}
+
+async function runPool(items, width, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(width, items.length) }, worker));
+  return results;
+}
+
+// Model output -> files. Blocks are "FILE: <name>.md" then content. Filenames
+// are sanitized to a bare .md basename - the model names files, it never picks
+// paths.
+function writeFileBlocks(dir, text) {
+  const written = [];
+  const parts = String(text).split(/^FILE:[ \t]*/m).slice(1);
+  for (const part of parts) {
+    const nl = part.indexOf('\n');
+    if (nl < 0) continue;
+    const name = path.basename(part.slice(0, nl).trim());
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.md$/.test(name)) continue;
+    const body = part.slice(nl + 1).trim();
+    if (!body) continue;
+    fs.writeFileSync(path.join(dir, name), body + '\n');
+    written.push(name);
+  }
+  return written;
+}
+
+function instructionsSection(brain, startRe, endRe) {
+  try {
+    const t = fs.readFileSync(path.join(brain, 'INSTRUCTIONS.md'), 'utf8');
+    const lines = t.split('\n');
+    const a = lines.findIndex((l) => startRe.test(l));
+    if (a < 0) return '';
+    let b = lines.slice(a + 1).findIndex((l) => endRe.test(l));
+    b = b < 0 ? lines.length : a + 1 + b;
+    return lines.slice(a, b).join('\n');
+  } catch { return ''; }
+}
+
+async function fanoutCompile(brain, workspace, sessions, cfg) {
+  const model = cfg.model || 'claude-sonnet-5';
+  const clusterSize = cfg.fanoutClusterSize || 3;
+  const maxClusters = cfg.fanoutMaxClusters || 50;
+  const width = cfg.fanoutParallel || 4;
+  const perSession = cfg.liteStatePerSessionChars || 30000;
+  const stateDir = path.join(brain, '.state');
+  const costLog = path.join(stateDir, 'cost.jsonl');
+  const t0 = Date.now();
+  let spent = 0;
+  const logCost = (stage, r) => {
+    spent += r.cost || 0;
+    try { fs.appendFileSync(costLog, JSON.stringify({ stage, cost_usd: r.cost, ms: r.ms, ok: r.ok }) + '\n'); } catch { /* best-effort */ }
+  };
+
+  // Filter each session to condensed text (deterministic, free).
+  const texts = [];
+  for (const sess of sessions) {
+    const out = path.join(stateDir, 'lite-' + path.basename(sess.path, '.jsonl') + '.txt');
+    const r = spawnSync('python3', [path.join(SCRIPTS, 'filter.py'), sess.path, out,
+      String(cfg.assistantCapChars || 2500), String(cfg.totalCapChars || 400000)], { stdio: 'ignore' });
+    if (r.status !== 0) continue;
+    let t = '';
+    try { t = fs.readFileSync(out, 'utf8'); } catch { continue; }
+    fs.rmSync(out, { force: true });
+    if (!t.trim()) continue;
+    if (t.length > perSession) t = t.slice(0, perSession) + '\n[capped]';
+    texts.push({ sess, t });
+  }
+  if (!texts.length) return { digests: 0, topics: 0, cost: 0, secs: 0, err: 'no usable content' };
+
+  // Cluster newest-first in groups of clusterSize, hard-capped. The cap is the
+  // cost ceiling: maxClusters * (one single-turn call) regardless of workspace size.
+  const clusters = [];
+  for (let i = 0; i < texts.length && clusters.length < maxClusters; i += clusterSize) {
+    clusters.push(texts.slice(i, i + clusterSize));
+  }
+  const dropped = texts.length - clusters.reduce((n, c) => n + c.length, 0);
+  console.log(`Compiling ${texts.length - dropped} session(s) in ${clusters.length} call(s), ${width}-way parallel${dropped > 0 ? ` (${dropped} oldest dropped by the ${maxClusters}-cluster cap)` : ''}...`);
+
+  const digestFmt = instructionsSection(brain, /^## Step 1:/, /^## Step 1\.5/);
+  let done = 0;
+  const digestResults = await runPool(clusters, width, async (cluster) => {
+    const corpus = cluster.map((c, i) =>
+      `===== SESSION ${i + 1} (${c.sess.source}, project: ${c.sess.project}, ${new Date(c.sess.mtime).toISOString().slice(0, 10)}) =====\n${c.t}`).join('\n\n');
+    const prompt = `[coding-brain:meta]\nYou are compiling session digests for a coding workspace's memory. Below are ${cluster.length} condensed session transcripts. Write one digest per session - EXCEPT sessions sharing the same date and project, which merge into one digest.\n\nFormat and rules:\n${digestFmt}\n\nStart each digest with a line exactly like:\nFILE: YYYY-MM-DD-<2-4-word-slug>.md\n(date = that session's date from its header). Never store secrets or tokens. Do not attempt to use any tools - reply with the digests as plain text only.\n\nTRANSCRIPTS:\n\n${corpus}`;
+    const r = await claudeOnce(prompt, model);
+    logCost('digest', r);
+    done++;
+    process.stdout.write(`  digest call ${done}/${clusters.length}${r.ok ? '' : ' FAILED'}\n`);
+    return r;
+  });
+  let digestCount = 0;
+  for (const r of digestResults) {
+    if (r && r.ok) digestCount += writeFileBlocks(path.join(brain, 'sessions'), r.text).length;
+  }
+  if (!digestCount) return { digests: 0, topics: 0, cost: spent, secs: (Date.now() - t0) / 1000, err: 'no digests produced' };
+
+  // Topics: one call over all digests (they are compact). The model groups by
+  // project itself - transcript cwd is a bad proxy for project in practice.
+  const digestFiles = fs.readdirSync(path.join(brain, 'sessions')).filter((f) => f.endsWith('.md'));
+  let digestBlob = digestFiles.map((f) => `----- ${f} -----\n` + fs.readFileSync(path.join(brain, 'sessions', f), 'utf8')).join('\n');
+  if (digestBlob.length > 350000) digestBlob = digestBlob.slice(0, 350000) + '\n[capped]';
+  const topicFmt = instructionsSection(brain, /^## Step 1\.5/, /^## Step 2/);
+  console.log('Compiling topic notes...');
+  const tr = await claudeOnce(`[coding-brain:meta]\nBelow are all session digests for one workspace. Group them into project/topic notes - the compiled current truth per project, per the format:\n${topicFmt}\n\nStart each topic note with a line exactly like:\nFILE: <project-slug>.md\nNewest digests win when they conflict. Never store secrets. Do not attempt to use tools - plain text only.\n\nDIGESTS:\n\n${digestBlob}`, model);
+  logCost('topics', tr);
+  let topicCount = 0;
+  if (tr.ok) topicCount = writeFileBlocks(path.join(brain, 'topics'), tr.text).length;
+
+  // STATE last, from topics + digest titles, observations-not-conclusions.
+  const stateFmt = instructionsSection(brain, /^## Step 3/, /^## Step 4/);
+  let topicBlob = '';
+  try {
+    topicBlob = fs.readdirSync(path.join(brain, 'topics')).filter((f) => f.endsWith('.md'))
+      .map((f) => `----- topics/${f} -----\n` + fs.readFileSync(path.join(brain, 'topics', f), 'utf8')).join('\n');
+  } catch { /* none */ }
+  if (topicBlob.length > 250000) topicBlob = topicBlob.slice(0, 250000) + '\n[capped]';
+  console.log('Compiling STATE...');
+  const sr = await claudeOnce(`[coding-brain:meta]\nWrite the workspace STATE file - a ~100-line current-truth dashboard - from the topic notes below, per the format:\n${stateFmt}\n\nOrder Active projects newest-activity-first. Record observations with their evidence and date, never interpretive conclusions. Never store secrets. Reply with ONLY the STATE file content - no FILE: header, no tools.\n\nTOPIC NOTES:\n\n${topicBlob}\n\nDIGEST LIST: ${digestFiles.join(', ')}`, model);
+  logCost('state', sr);
+  if (sr.ok && sr.text.trim()) fs.writeFileSync(path.join(brain, 'STATE.md'), sr.text.trim() + '\n');
+
+  return { digests: digestCount, topics: topicCount, cost: spent, secs: (Date.now() - t0) / 1000 };
+}
+
 function runLiteState(brain, workspace, corpusPath, nSessions) {
   const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
   const model = cfg.model || 'claude-sonnet-5';
@@ -655,25 +813,27 @@ async function cmdInit(args) {
   // c. Lite STATE — ONE model call over the most recent sessions.
   if (compile && sessions.length) {
     const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
-    const { corpusPath, sessions: n, chars } = buildCorpus(brain, workspace, sessions, cfg);
+    // Window/floor: everything from the last N days, never fewer than M.
+    const windowDays = cfg.liteStateWindowDays || 7;
+    const minSessions = cfg.liteStateSessions || 30;
+    const cutoff = Date.now() - windowDays * 86400 * 1000;
+    const n = Math.max(sessions.filter((x) => x.mtime >= cutoff).length, Math.min(minSessions, sessions.length));
     if (n === 0) {
       console.log('No usable transcript content after filtering — skipping the starter briefing.');
     } else {
-      console.log(`Reading your ${n} most recent sessions and compiling your brain — digests, topic notes, and the briefing (one model call, ~2-5 min)...`);
-      const res = runLiteState(brain, workspace, corpusPath, n);
-      // STATE.md is written LAST by the compile step, so its existence also
-      // means the digest and topic passes ran — no separate check needed.
-      if (res.ok && fs.existsSync(path.join(brain, 'STATE.md'))) {
-        const count = (d) => { try { return fs.readdirSync(path.join(brain, d)).filter((f) => f.endsWith('.md')).length; } catch { return 0; } };
+      console.log(`Compiling your brain from ${n} session(s) - digests, topic notes, and the briefing...`);
+      const res = await fanoutCompile(brain, workspace, sessions.slice(0, n), cfg);
+      if (res.digests > 0 && fs.existsSync(path.join(brain, 'STATE.md'))) {
         spawnSync('git', ['-C', brain, 'add', '-A'], { stdio: 'ignore' });
         spawnSync('git', ['-C', brain, '-c', 'user.name=coding-brain', '-c', 'user.email=coding-brain@local',
           'commit', '-qm', `init: brain compiled from ${n} sessions`], { stdio: 'ignore' });
-        console.log(`\nBrain compiled: ${count('sessions')} session digest(s), ${count('topics')} topic note(s).`);
+        const costNote = res.cost > 0.005 ? ` · ~$${res.cost.toFixed(2)} of model time` : '';
+        console.log(`\nBrain compiled: ${res.digests} session digest(s), ${res.topics} topic note(s) in ${Math.round(res.secs)}s${costNote}.`);
         console.log('\n===== Your starter briefing =====\n');
         console.log(fs.readFileSync(path.join(brain, 'STATE.md'), 'utf8'));
         console.log('=================================\n');
       } else {
-        console.log(`Starter briefing failed (${res.err || 'nothing was written'}) — continuing with hooks-only install. Run \`npx coding-brain harvest\` later to retry.`);
+        console.log(`Starter compile failed (${res.err || 'nothing was written'}) — continuing with hooks-only install. Run \`npx coding-brain harvest\` later to retry.`);
       }
     }
   } else if (!compile) {

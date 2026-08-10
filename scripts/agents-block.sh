@@ -60,7 +60,7 @@ BLOCK="$START_MARK
 ## Coding brain (managed block — refreshed automatically, do not edit)
 $receipt
 
-Read \`.coding-brain/STATE.md\` FIRST: it is the compiled current-truth briefing
+Read \`.coding-brain/STATE.md\` FIRST — as LEADS, not findings: open threads are starting points to investigate, status claims need re-verification before repeating, and it is the compiled briefing
 for this workspace, distilled and evidence-checked from previous sessions.
 Anything not in it (past sessions, fixes, how-we-did-X) is searchable:
   bash $SCRIPT_DIR/search.sh <query words>

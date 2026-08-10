@@ -173,6 +173,15 @@ any transcript claim.
 
 ## Step 3: Rewrite STATE.md
 
+
+**Observations, not conclusions.** Every status entry must record what was
+measured and what produced it — "as of 2026-08-10, `git status` reported 2
+ahead of origin" — never an interpretation that carries a frame — "just the
+push still pending". A dated observation goes stale harmlessly; a stale frame
+silently redirects every future session that reads it (measured failure mode:
+a session asked about publish-state answered origin-sync-state because a STATE
+line framed it that way).
+
 Rewrite `.coding-brain/STATE.md` (replace content, do not append) so it
 reflects the workspace *right now*, after Step 2 reconciliation. It is
 injected into every new session, so keep it under ~100 lines. Structure:
