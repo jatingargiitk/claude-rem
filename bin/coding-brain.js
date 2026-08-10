@@ -823,6 +823,104 @@ async function cmdUi(args) {
   process.exit(code || 0);
 }
 
+// ---------------------------------------------------------------------- ab
+// Does the brain actually help? Run one question twice — once blind, once with
+// the brain injected — with the SAME model and the SAME tools, so the injected
+// context is the only variable.
+//
+// Both sides get read access to the workspace on purpose. The honest question
+// isn't "does context beat nothing", it's "does context beat just reading the
+// repo" — an agent that can grep its way to the answer doesn't need a brain.
+
+function runProbe(question, context, workspace, model, allowTools, brainDir) {
+  const prompt = context
+    ? `${context}\n\n---\n\n${question}`
+    : question;
+  const argv = ['-p', prompt, '--model', model, '--setting-sources', '', '--output-format', 'json'];
+  if (allowTools) {
+    argv.push('--allowedTools', `Read(/${workspace}/**),Grep,Glob,Bash(git *),Bash(ls *)`);
+    // The blind run must not reach the brain on disk. Without this it simply
+    // greps .coding-brain/ and answers from the same notes the other side was
+    // handed — which measures injection-vs-retrieval, not brain-vs-no-brain.
+    // Caught this the first time the command ran: side A cited "the brain notes".
+    if (brainDir) {
+      argv.push('--disallowedTools',
+        `Read(${brainDir}/**),Read(${path.join(workspace, '.cursor/brain')}/**),Bash(cat *),Bash(grep *)`);
+    }
+  }
+  const started = Date.now();
+  const r = spawnSync('claude', argv, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    // CODING_BRAIN_HARVEST stops this probe's own hooks from injecting or
+    // harvesting — otherwise the blind run isn't blind.
+    env: { ...process.env, CODING_BRAIN_HARVEST: '1' },
+    encoding: 'utf8',
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  const ms = Date.now() - started;
+  if (r.error) return { ok: false, err: String(r.error.message || r.error), ms };
+  if (r.status !== 0) return { ok: false, err: (r.stderr || '').slice(0, 300), ms };
+  try {
+    const d = JSON.parse(r.stdout);
+    return { ok: true, text: d.result || '', turns: d.num_turns, cost: d.total_cost_usd, ms };
+  } catch {
+    return { ok: true, text: (r.stdout || '').trim(), ms };
+  }
+}
+
+function cmdAb(args) {
+  const flags = args.filter((a) => a.startsWith('--'));
+  const question = args.filter((a) => !a.startsWith('--')).join(' ').trim();
+  if (!question) die('usage: npx coding-brain ab "<question>" [--no-tools] [--model <m>]');
+
+  const brain = findBrain(process.cwd());
+  if (!brain) die('no .coding-brain found (run `npx coding-brain init` first)');
+  const workspace = path.dirname(brain);
+  const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
+  const mi = flags.indexOf('--model');
+  const model = mi >= 0 ? args[args.indexOf('--model') + 1] : (cfg.model || 'claude-sonnet-5');
+  const allowTools = !flags.includes('--no-tools');
+
+  // Capture exactly what a real session would be given: run the recall hook
+  // with a throwaway session id so it emits the full dump, not a follow-up.
+  const hook = spawnSync('bash', [path.join(SCRIPTS, 'recall-hook.sh')], {
+    input: JSON.stringify({ session_id: 'ab-probe-' + process.pid, cwd: workspace, prompt: question }),
+    encoding: 'utf8',
+  });
+  const context = (hook.stdout || '').trim();
+  if (!context) die('the recall hook produced nothing — is STATE.md present?');
+
+  console.log(`Question: ${question}`);
+  console.log(`Model: ${model} · tools: ${allowTools ? 'read-only workspace, brain dirs denied to A' : 'none'}`);
+  console.log(`Injected context: ${context.length.toLocaleString()} chars\n`);
+
+  console.log('Running A (blind) and B (with brain)...\n');
+  // Side A is denied the brain on disk; side B gets it injected. Same model,
+  // same everything else.
+  const a = runProbe(question, null, workspace, model, allowTools, brain);
+  const b = runProbe(question, context, workspace, model, allowTools, null);
+
+  const show = (label, r) => {
+    console.log('='.repeat(72));
+    console.log(label);
+    console.log('='.repeat(72));
+    console.log(r.ok ? r.text : `FAILED: ${r.err}`);
+    const bits = [`${(r.ms / 1000).toFixed(1)}s`];
+    if (r.turns != null) bits.push(`${r.turns} turns`);
+    if (r.cost != null) bits.push(`$${Number(r.cost).toFixed(4)}`);
+    console.log(`\n[${bits.join(' · ')}]\n`);
+  };
+  show('A — BLIND (no brain)', a);
+  show('B — WITH BRAIN', b);
+
+  console.log('='.repeat(72));
+  console.log('Judge it on these, in order:');
+  console.log('  1. Did B state anything true that A got wrong or missed entirely?');
+  console.log('  2. Did B state anything FALSE that A did not? (stale brain is worse than no brain)');
+  console.log('  3. Did A get there anyway by reading the repo — just slower?');
+  console.log('If only 3 applies, the brain saved time, not correctness. That is a weaker claim.');
+}
+
 // -------------------------------------------------------------------- main
 
 const USAGE = `coding-brain — a compiled brain for Claude Code, Cursor & Codex
@@ -838,6 +936,9 @@ Usage: npx coding-brain <command>
   search <w>  Ranked lexical search over STATE + topics + digests
   log         git log of the brain (one commit per harvest)
   harvest     Force-harvest the newest unharvested transcript now
+  ab <q>      Ask one question twice — blind vs with the brain — same model and
+              tools on both sides, so you can see what the brain is worth.
+              Flags: --no-tools --model <m>
   uninstall   Remove coding-brain hooks (brain dir is left untouched)
 `;
 
@@ -851,6 +952,7 @@ Usage: npx coding-brain <command>
     case 'search': cmdSearch(args); break;
     case 'log': cmdLog(); break;
     case 'harvest': cmdHarvest(); break;
+    case 'ab': cmdAb(args); break;
     case 'uninstall': cmdUninstall(args); break;
     default: console.log(USAGE); process.exit(cmd ? 1 : 0);
   }
