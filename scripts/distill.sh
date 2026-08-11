@@ -370,6 +370,64 @@ CHANGED_DIGESTS=$(echo "$CHANGED" | tr ' ' '\n' | grep '^sessions/' | sed "s|^|$
   python3 "$SCRIPT_DIR/metrics.py" log "$TRANSCRIPT_PATH" "$WORKSPACE_ROOT" >> "$LOG_FILE" 2>&1 \
   || echo "$(date '+%F %T') metrics log failed" >> "$LOG_FILE"
 
+# Miss-escalation: being told twice is a signal, three times is a rule.
+# Purely mechanical - if the SAME normalized `brain miss:` text was recorded
+# in >= missPromoteThreshold distinct conversations, it is promoted to
+# RULES.md (binding, injected every session) with no model judgment involved.
+PROMOTED=$(python3 - "$STATE_DIR/metrics.jsonl" "$BRAIN_DIR/RULES.md" "$(cfg missPromoteThreshold 2)" <<'ESCALATE'
+import json, os, re, sys
+metrics, rules_path, threshold = sys.argv[1], sys.argv[2], int(sys.argv[3])
+if not os.path.exists(metrics):
+    print(0); sys.exit(0)
+
+def norm(t):
+    return re.sub(r'[^a-z0-9 ]+', '', t.lower()).strip()
+
+seen = {}   # norm text -> {'text': original, 'convs': set()}
+for line in open(metrics, encoding='utf-8', errors='replace'):
+    try:
+        d = json.loads(line)
+    except Exception:
+        continue
+    conv = d.get('conversation') or '?'
+    for t in (d.get('miss_notes') or []):
+        n = norm(t)
+        if len(n) < 8:
+            continue
+        seen.setdefault(n, {'text': t.strip(), 'convs': set()})['convs'].add(conv)
+
+rules = ''
+if os.path.exists(rules_path):
+    rules = open(rules_path, encoding='utf-8', errors='replace').read()
+rules_norm = norm(rules)
+
+promoted = 0
+adds = []
+for n, info in seen.items():
+    if len(info['convs']) < threshold:
+        continue
+    if n in rules_norm:      # already a rule (hand-written or promoted earlier)
+        continue
+    adds.append(f"- {info['text']} (auto-promoted: repeated in {len(info['convs'])} sessions)")
+    rules_norm += ' ' + n    # dedup within this run too
+    promoted += 1
+if adds:
+    header = '' if rules else '# Coding Brain — Learned Rules\n\n'
+    with open(rules_path, 'a', encoding='utf-8') as fh:
+        if header and not rules:
+            fh.write(header)
+        fh.write('\n'.join(adds) + '\n')
+print(promoted)
+ESCALATE
+)
+case "$PROMOTED" in (*[!0-9]*|"") PROMOTED=0;; esac
+if [ "$PROMOTED" -gt 0 ]; then
+  echo "$(date '+%F %T') miss-escalation promoted $PROMOTED rule(s)" >> "$LOG_FILE"
+  git -C "$BRAIN_DIR" add RULES.md >> "$LOG_FILE" 2>&1
+  git -C "$BRAIN_DIR" -c user.name="coding-brain" -c user.email="coding-brain@local" \
+    commit -qm "rules: auto-promoted $PROMOTED repeated correction(s)" >> "$LOG_FILE" 2>&1
+fi
+
 # Debounce offset advances only on success — and only after metrics has had
 # its chance to scan the transcript delta this harvest covered.
 if [ "$rc" -eq 0 ]; then

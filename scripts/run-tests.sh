@@ -850,6 +850,28 @@ json.dump(d, open(p, 'w'))
 CFG
 rm -f "$BRAIN/sessions/2026-01-02-cursor-engine.md" "$STUBBIN/cursor-agent"
 
+# Miss-escalation: same miss in 2 distinct conversations -> mechanical rule.
+python3 - "$BRAIN/.state/metrics.jsonl" <<'SEED'
+import json, sys
+recs = [
+  {"ts": "t1", "conversation": "conv-aaa", "miss_notes": ["always use port 5057 for the tiny api"]},
+  {"ts": "t2", "conversation": "conv-bbb", "miss_notes": ["always use port 5057 for the tiny api"]},
+]
+with open(sys.argv[1], 'a') as fh:
+    for r in recs: fh.write(json.dumps(r) + "\n")
+SEED
+bash "$SCRIPTS/distill.sh" "$CLAUDE_T" "$WS" >/dev/null 2>&1
+r=1
+grep -q "always use port 5057 for the tiny api (auto-promoted: repeated in 2 sessions)" "$BRAIN/RULES.md" && r=0
+check "escalation: miss repeated across 2 conversations becomes a rule" $r
+
+# Idempotent: a second harvest must not duplicate the promoted rule.
+bash "$SCRIPTS/distill.sh" "$CLAUDE_T" "$WS" >/dev/null 2>&1
+r=1
+[ "$(grep -c 'always use port 5057 for the tiny api' "$BRAIN/RULES.md")" -eq 1 ] && r=0
+check "escalation: promoted rule is never duplicated" $r
+: > "$CLAUDE_STUB_LOG"
+
 # False-success guard: a brain wiped mid-run must be a FAILURE, not success.
 cp -R "$BRAIN" "$TESTWS/brain-snapshot"
 CB_TEST_WIPE=1 bash "$SCRIPTS/distill.sh" "$CLAUDE_T" "$WS" >/dev/null 2>&1
