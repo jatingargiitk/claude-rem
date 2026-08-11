@@ -361,6 +361,36 @@ r=1
 [ -z "$RC4" ] && r=0
 check "recall: recursion guard (CODING_BRAIN_HARVEST)" $r
 
+# ---------------------------------------------------- cursor-prompt-hook.sh
+
+CP=$(cd "$WS" && printf '{"prompt":"remind me about alphaword in proj","conversation_id":"cv1"}' \
+  | bash "$SCRIPTS/cursor-prompt-hook.sh")
+r=1
+echo "$CP" | python3 -c "
+import json,sys
+d=json.load(sys.stdin); c=d.get('additional_context','')
+assert 'brain → proj' in c, 'receipt missing'
+assert 'alphaword only here' in c, 'topic body missing'
+" && r=0
+check "cursor-prompt: topic match injects receipt + note as additional_context" $r
+
+CP2=$(cd "$WS" && printf '{"prompt":"what is the weather in paris","conversation_id":"cv1"}' \
+  | bash "$SCRIPTS/cursor-prompt-hook.sh")
+r=1
+[ "$CP2" = "{}" ] && r=0
+check "cursor-prompt: no topic match emits {}" $r
+
+CP3=$(cd "$WS" && printf '{"prompt":"more about alphaword in proj","conversation_id":"cv1"}' \
+  | bash "$SCRIPTS/cursor-prompt-hook.sh")
+r=1
+echo "$CP3" | python3 -c "
+import json,sys
+c=json.load(sys.stdin).get('additional_context','')
+assert 'already in context this conversation: topics/proj.md' in c
+assert 'alphaword only here' not in c
+" && r=0
+check "cursor-prompt: topic body injected at most once per conversation" $r
+
 # ---------------------------------------------------- cursor-recall-hook.sh
 
 CRC=$(cd "$WS" && echo '{}' | bash "$SCRIPTS/cursor-recall-hook.sh")
