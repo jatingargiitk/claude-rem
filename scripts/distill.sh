@@ -146,6 +146,17 @@ echo "$RAW" | python3 -c "import json,sys
 try: print('RESULT:', (json.loads(sys.stdin.read()).get('result') or '')[:400])
 except Exception as e: print('RESULT parse error:', e)" >> "$LOG_FILE" 2>/dev/null
 
+# Success requires the brain to have SURVIVED, not just the agent exiting 0.
+# Documented failure (Aug 10): the brain dir was deleted mid-run by another
+# process; every write errored, yet this script printed "Harvest complete."
+# and exited 0. Silent data loss reporting as success is the one failure a
+# memory tool cannot have.
+if [ "$rc" -eq 0 ] && { [ ! -d "$BRAIN_DIR" ] || [ ! -f "$BRAIN_DIR/STATE.md" ]; }; then
+  rc=97
+  mkdir -p "$STATE_DIR" 2>/dev/null
+  echo "$(date '+%F %T') FALSE-SUCCESS GUARD: brain dir or STATE.md missing after run" >> "$LOG_FILE" 2>/dev/null
+fi
+
 CHANGED=""
 if [ "$rc" -eq 0 ]; then
   date +%s > "$STATE_DIR/last_success"

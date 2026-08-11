@@ -74,6 +74,11 @@ git -C "$WS" -c user.name=t -c user.email=t@t commit -qm "init"
 cat > "$STUBBIN/claude" <<'STUB'
 #!/bin/bash
 echo "CALL $*" >> "$CLAUDE_STUB_LOG"
+if [ -n "${CB_TEST_WIPE:-}" ] && [ -n "${BRAIN_DIR:-}" ]; then
+  rm -rf "$BRAIN_DIR"
+  echo '{"result":"wiped","total_cost_usd":0,"num_turns":1,"duration_ms":10}'
+  exit 0
+fi
 json() { python3 -c 'import json,sys; print(json.dumps({"result": sys.stdin.read(), "total_cost_usd": 0.01, "num_turns": 1, "duration_ms": 10}))'; }
 case "$*" in
   *"compiling session digests"*)
@@ -360,6 +365,7 @@ RC4=$(printf '{"session_id":"sess-recall-3","cwd":"%s"}' "$WS" | CODING_BRAIN_HA
 r=1
 [ -z "$RC4" ] && r=0
 check "recall: recursion guard (CODING_BRAIN_HARVEST)" $r
+
 
 # ---------------------------------------------------- cursor-prompt-hook.sh
 
@@ -763,6 +769,21 @@ r=1
   && grep -q 'LEADS, not findings' "$WS/AGENTS.md" \
   && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" && r=0
 check "distill: refreshes AGENTS.md managed block after harvest" $r
+
+# False-success guard: a brain wiped mid-run must be a FAILURE, not success.
+cp -R "$BRAIN" "$TESTWS/brain-snapshot"
+CB_TEST_WIPE=1 bash "$SCRIPTS/distill.sh" "$CLAUDE_T" "$WS" >/dev/null 2>&1
+DRC=$?
+r=1
+[ "$DRC" -ne 0 ] \
+  && [ -f "$BRAIN/.state/last_failure" ] \
+  && grep -q "FALSE-SUCCESS GUARD" "$BRAIN/.state/harvest.log" && r=0
+check "distill: brain wiped mid-run reports failure, never success" $r
+rm -rf "$BRAIN"; mv "$TESTWS/brain-snapshot" "$BRAIN"
+# This test made a real (stubbed) claude call; later harvest tests count calls
+# absolutely, so reset the stub ledger to leave no trace.
+: > "$CLAUDE_STUB_LOG"
+
 
 # ---------------------------------------------------- codex uninstall
 
