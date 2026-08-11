@@ -321,6 +321,8 @@ function uninstallClaudeHooks(opts) {
 const CURSOR_HOOKS = [
   { event: 'stop', command: `"${path.join(SCRIPTS, 'cursor-harvest-hook.sh')}"`, marker: 'scripts/cursor-harvest-hook.sh', timeout: 10 },
   { event: 'sessionStart', command: `"${path.join(SCRIPTS, 'cursor-recall-hook.sh')}"`, marker: 'scripts/cursor-recall-hook.sh', timeout: 10 },
+
+  { event: 'beforeSubmitPrompt', command: `"${path.join(SCRIPTS, 'cursor-prompt-hook.sh')}"`, marker: 'scripts/cursor-prompt-hook.sh', timeout: 10 },
 ];
 
 function installCursorHooks(workspace, opts) {
