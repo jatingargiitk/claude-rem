@@ -81,6 +81,14 @@ if [ -n "${CB_TEST_WIPE:-}" ] && [ -n "${BRAIN_DIR:-}" ]; then
 fi
 json() { python3 -c 'import json,sys; print(json.dumps({"result": sys.stdin.read(), "total_cost_usd": 0.01, "num_turns": 1, "duration_ms": 10}))'; }
 case "$*" in
+  *"consolidating old session digests"*)
+    json <<'EOT'
+FILE: sessions/2020-01-ws-rollup.md
+# 2020-01 ws — consolidated
+- decision: kept
+- gotcha: kept
+EOT
+    exit 0 ;;
   *"Reply ONLY with FILE: blocks"*)
     # single-turn incremental harvest: model returns FILE: blocks, distill
     # writes them. Unique stub-run line -> committable diff on every call.
@@ -870,6 +878,29 @@ bash "$SCRIPTS/distill.sh" "$CLAUDE_T" "$WS" >/dev/null 2>&1
 r=1
 [ "$(grep -c 'always use port 5057 for the tiny api' "$BRAIN/RULES.md")" -eq 1 ] && r=0
 check "escalation: promoted rule is never duplicated" $r
+: > "$CLAUDE_STUB_LOG"
+
+# Consolidation: 3 old same-month digests merge into one rollup, originals gone.
+for i in 1 2 3; do
+  printf '# Old digest %s\nDate: 2020-01-0%s\nProject: ws\n\n## What happened\n- old stuff %s\n' "$i" "$i" "$i" \
+    > "$BRAIN/sessions/2020-01-0$i-old-thing.md"
+done
+bash "$SCRIPTS/distill.sh" --consolidate "$WS" >/dev/null 2>&1
+r=1
+[ -f "$BRAIN/sessions/2020-01-ws-rollup.md" ] \
+  && [ ! -f "$BRAIN/sessions/2020-01-01-old-thing.md" ] \
+  && [ ! -f "$BRAIN/sessions/2020-01-03-old-thing.md" ] \
+  && git -C "$BRAIN" log --oneline -1 | grep -q "consolidate: 2020-01 ws (3 digests -> 1 rollup)" && r=0
+check "consolidate: 3 old digests -> one rollup, originals removed, committed" $r
+
+# Idempotent: rollups are skipped; nothing eligible on a second pass.
+NC_BEFORE=$(git -C "$BRAIN" rev-list --count HEAD)
+bash "$SCRIPTS/distill.sh" --consolidate "$WS" >/dev/null 2>&1
+r=1
+[ "$(git -C "$BRAIN" rev-list --count HEAD)" -eq "$NC_BEFORE" ] \
+  && [ -f "$BRAIN/sessions/2020-01-ws-rollup.md" ] && r=0
+check "consolidate: second pass is a no-op (rollups skipped)" $r
+rm -f "$BRAIN/sessions/2020-01-ws-rollup.md" "$BRAIN/.state/last_consolidate"
 : > "$CLAUDE_STUB_LOG"
 
 # False-success guard: a brain wiped mid-run must be a FAILURE, not success.

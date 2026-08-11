@@ -11,8 +11,15 @@
 #
 # Usage: distill.sh <transcript.jsonl> <workspace_root>
 
-TRANSCRIPT_PATH="$1"
-WORKSPACE_ROOT="$2"
+CONSOLIDATE_ONLY=0
+if [ "$1" = "--consolidate" ]; then
+  CONSOLIDATE_ONLY=1
+  TRANSCRIPT_PATH=""
+  WORKSPACE_ROOT="$2"
+else
+  TRANSCRIPT_PATH="$1"
+  WORKSPACE_ROOT="$2"
+fi
 
 cd "$WORKSPACE_ROOT" || exit 1
 WORKSPACE_ROOT="$PWD"
@@ -57,6 +64,126 @@ notify() {  # notify <title> <message> — glanceable, never interruptive; macOS
   fi
 }
 
+# Consolidation: old digests are raw history nobody should have to wade
+# through. Groups of >= consolidateMinDigests digests older than
+# consolidateAfterDays, same month + project, merge into ONE rollup that
+# keeps decisions and gotchas and drops play-by-play. Same compaction bet as
+# STATE - a bigger pile is not a better memory - applied to the one layer
+# that still grows monotonically. Runs weekly after a harvest, or on demand
+# via `coding-brain consolidate`.
+consolidate_pass() {
+  local after_days min_n manifest
+  after_days=$(cfg consolidateAfterDays 30)
+  min_n=$(cfg consolidateMinDigests 3)
+  manifest="$STATE_DIR/consolidate-manifest.txt"
+  python3 - "$BRAIN_DIR/sessions" "$after_days" "$min_n" "$manifest" <<'GROUPS'
+import os, re, sys, datetime
+sdir, after_days, min_n, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+cutoff = datetime.date.today() - datetime.timedelta(days=after_days)
+groups = {}
+for fn in sorted(os.listdir(sdir)):
+    if not fn.endswith('.md') or '-rollup' in fn:
+        continue
+    try:
+        text = open(os.path.join(sdir, fn), encoding='utf-8', errors='replace').read()
+    except OSError:
+        continue
+    m = re.search(r'^Date:\s*(\d{4}-\d{2})-(\d{2})', text, re.M) or re.match(r'(\d{4}-\d{2})-(\d{2})', fn)
+    if not m:
+        continue
+    try:
+        d = datetime.date(int(m.group(1)[:4]), int(m.group(1)[5:7]), int(m.group(2)))
+    except ValueError:
+        continue
+    if d > cutoff:
+        continue
+    pm = re.search(r'^Project:\s*(.+)$', text, re.M)
+    proj = re.sub(r'[^a-z0-9]+', '-', (pm.group(1) if pm else 'workspace').lower()).strip('-')[:40] or 'workspace'
+    groups.setdefault((m.group(1), proj), []).append(fn)
+with open(out, 'w') as fh:
+    for (month, proj), files in groups.items():
+        if len(files) >= min_n:
+            fh.write(f"{month}\t{proj}\t{','.join(files)}\n")
+GROUPS
+  [ -s "$manifest" ] || { rm -f "$manifest"; return 0; }
+
+  local eng cbin cmodel
+  eng=$(cfg harvestEngine auto)
+  cbin=$(command -v cursor-agent || command -v agent || true)
+  if [ "$eng" = "auto" ]; then
+    if command -v claude >/dev/null 2>&1; then eng=claude
+    elif [ -n "$cbin" ]; then eng=cursor-agent
+    else return 0; fi
+  fi
+  cmodel=$(cfg cursorModel claude-sonnet-5-high)
+
+  while IFS=$'\t' read -r month proj files; do
+    local corpus="$STATE_DIR/consolidate-corpus.txt" rollup="sessions/${month}-${proj}-rollup.md"
+    : > "$corpus"
+    local IFS_SAVE="$IFS"; IFS=','
+    for f in $files; do
+      printf -- '----- %s -----\n' "$f" >> "$corpus"
+      cat "$BRAIN_DIR/sessions/$f" >> "$corpus"
+      printf '\n' >> "$corpus"
+    done
+    IFS="$IFS_SAVE"
+    local cprompt="[coding-brain:meta]
+You are consolidating old session digests into one rollup. Below are digests from ${month} for project '${proj}'. Merge into ONE file that keeps: decisions (dated), gotchas/learnings, and where-things-live facts likely still true. Drop play-by-play. Max ~70 lines. Never store secrets. Do not use tools.
+Reply ONLY with:
+FILE: ${rollup}
+followed by the content.
+
+DIGESTS:
+
+$(cat "$corpus")"
+    local craw crc
+    if [ "$eng" = "cursor-agent" ]; then
+      craw=$("$cbin" -p "$cprompt" --model "$cmodel" --force --output-format text < /dev/null 2>>"$LOG_FILE"); crc=$?
+    else
+      craw=$(claude -p "$cprompt" --model "$RUN_MODEL" --setting-sources "" --output-format json < /dev/null 2>>"$LOG_FILE"); crc=$?
+    fi
+    if [ "$crc" -ne 0 ]; then
+      echo "$(date '+%F %T') consolidate: engine failed for $month/$proj" >> "$LOG_FILE"; continue
+    fi
+    printf '%s' "$craw" > "$STATE_DIR/consolidate-raw.txt"
+    local applied
+    applied=$(python3 - "$BRAIN_DIR" "$STATE_DIR/consolidate-raw.txt" "$rollup" <<'CAPPLY'
+import json, os, re, sys
+brain, rawp, expect = sys.argv[1], sys.argv[2], sys.argv[3]
+raw = open(rawp, encoding='utf-8', errors='replace').read()
+try:
+    result = json.loads(raw).get('result') or ''
+except Exception:
+    result = raw
+m = re.search(r'^FILE:[ \t]*' + re.escape(expect) + r'[ \t]*$', result, re.M)
+if not m:
+    print(0); sys.exit(0)
+body = result[m.end():].strip()
+body = re.split(r'^FILE:', body, flags=re.M)[0].strip()
+if not body:
+    print(0); sys.exit(0)
+dst = os.path.join(brain, expect)
+tmp = dst + '.tmp-' + str(os.getpid())
+open(tmp, 'w').write(body + '\n')
+os.replace(tmp, dst)
+print(1)
+CAPPLY
+)
+    if [ "$applied" = "1" ]; then
+      local IFS_SAVE2="$IFS"; IFS=','
+      for f in $files; do rm -f "$BRAIN_DIR/sessions/$f"; done
+      IFS="$IFS_SAVE2"
+      local n; n=$(echo "$files" | tr ',' '\n' | wc -l | tr -d ' ')
+      git -C "$BRAIN_DIR" add -A >> "$LOG_FILE" 2>&1
+      git -C "$BRAIN_DIR" -c user.name="coding-brain" -c user.email="coding-brain@local" \
+        commit -qm "consolidate: $month $proj ($n digests -> 1 rollup)" >> "$LOG_FILE" 2>&1
+      echo "$(date '+%F %T') consolidated $month/$proj ($n -> 1)" >> "$LOG_FILE"
+    fi
+  done < "$manifest"
+  rm -f "$manifest" "$STATE_DIR/consolidate-corpus.txt" "$STATE_DIR/consolidate-raw.txt"
+  date +%s > "$STATE_DIR/last_consolidate"
+}
+
 # One harvester at a time. A lock left behind by a crashed harvest (reboot,
 # kill -9) would freeze harvesting forever — break it when stale.
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -72,6 +199,13 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   fi
 fi
 trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
+
+if [ "$CONSOLIDATE_ONLY" -eq 1 ]; then
+  RUN_MODEL=$(cfg model claude-sonnet-5)
+  echo "$(date '+%F %T') consolidate-only run" >> "$LOG_FILE"
+  consolidate_pass
+  exit 0
+fi
 
 STEM=$(basename "$TRANSCRIPT_PATH" .jsonl)
 echo "$(date '+%F %T') harvest start: $TRANSCRIPT_PATH" >> "$LOG_FILE"
@@ -432,6 +566,15 @@ fi
 # its chance to scan the transcript delta this harvest covered.
 if [ "$rc" -eq 0 ]; then
   echo "$SIZE_AT_START" > "$STATE_DIR/$STEM"
+fi
+
+# Weekly consolidation ride-along: cheap check, runs inside the same lock.
+if [ "$rc" -eq 0 ]; then
+  LASTC=$(cat "$STATE_DIR/last_consolidate" 2>/dev/null || echo 0)
+  case "$LASTC" in (*[!0-9]*|"") LASTC=0;; esac
+  if [ $(( $(date +%s) - LASTC )) -gt $(( 7 * 86400 )) ]; then
+    consolidate_pass
+  fi
 fi
 
 echo "$(date '+%F %T') harvest done (exit $rc)" >> "$LOG_FILE"

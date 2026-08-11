@@ -1009,6 +1009,19 @@ function cmdLog() {
   process.exit(r.status || 0);
 }
 
+function cmdConsolidate() {
+  const brain = findBrain(process.cwd());
+  if (!brain) die('no .coding-brain found (run `npx coding-brain init` first)');
+  const workspace = path.dirname(brain);
+  console.log('Consolidating old digests (month+project groups older than 30 days)...');
+  const r = spawnSync('bash', [path.join(SCRIPTS, 'distill.sh'), '--consolidate', workspace],
+    { stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, BRAIN_DIR: brain } });
+  if (r.status === 0) {
+    const g = spawnSync('git', ['-C', brain, 'log', '--oneline', '-3'], { encoding: 'utf8' });
+    console.log('Done. Recent brain commits:\n' + (g.stdout || '').trim());
+  } else die('consolidation failed - see .coding-brain/.state/harvest.log');
+}
+
 function cmdHarvest() {
   const brain = findBrain(process.cwd());
   if (!brain) die('no .coding-brain found (run `npx coding-brain init` first)');
@@ -1385,6 +1398,7 @@ Usage: npx coding-brain <command>
   search <w>  Ranked lexical search over STATE + topics + digests
   log         git log of the brain (one commit per harvest)
   harvest     Force-harvest the newest unharvested transcript now
+  consolidate Merge old digests (30d+) into per-month rollups now
   ab <q>      Ask one question twice — blind vs with the brain — same model and
               tools on both sides, so you can see what the brain is worth.
               Flags: --strict --no-tools --model <m> --brain <path>
@@ -1404,6 +1418,7 @@ Usage: npx coding-brain <command>
     case 'search': cmdSearch(args); break;
     case 'log': cmdLog(); break;
     case 'harvest': cmdHarvest(); break;
+    case 'consolidate': cmdConsolidate(); break;
     case 'ab': cmdAb(args); break;
     case 'eval': cmdEval(args); break;
     case 'uninstall': cmdUninstall(args); break;
