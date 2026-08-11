@@ -636,6 +636,23 @@ function instructionsSection(brain, startRe, endRe) {
   } catch { return ''; }
 }
 
+// The same advisory lock distill.sh uses (<brain>/.state/harvest.lock).
+// init must both RESPECT it (never scaffold/compile over a mid-flight harvest -
+// the documented Aug-8 wipe was exactly that) and HOLD it (so a stop-hook
+// harvest firing mid-backfill queues behind us instead of interleaving).
+function acquireBrainLock(brain, staleMinutes) {
+  const lockDir = path.join(brain, '.state', 'harvest.lock');
+  fs.mkdirSync(path.join(brain, '.state'), { recursive: true });
+  const tryOnce = () => { try { fs.mkdirSync(lockDir); return true; } catch { return false; } };
+  if (!tryOnce()) {
+    let stale = false;
+    try { stale = (Date.now() - fs.statSync(lockDir).mtimeMs) > staleMinutes * 60 * 1000; } catch { stale = true; }
+    if (stale) { try { fs.rmSync(lockDir, { recursive: true, force: true }); } catch { /* raced */ } }
+    if (!tryOnce()) return null;
+  }
+  return () => { try { fs.rmdirSync(lockDir); } catch { /* already gone */ } };
+}
+
 async function fanoutCompile(brain, workspace, sessions, cfg) {
   const model = cfg.model || 'claude-sonnet-5';
   const clusterSize = cfg.fanoutClusterSize || 3;
@@ -808,9 +825,20 @@ async function cmdInit(args) {
     }
   }
 
+  // Never scaffold or compile over a mid-flight harvest: the lock check must
+  // come BEFORE scaffoldBrain touches anything in an existing brain.
+  const preLock = path.join(workspace, '.coding-brain', '.state', 'harvest.lock');
+  if (fs.existsSync(preLock)) {
+    let fresh = true;
+    try { fresh = (Date.now() - fs.statSync(preLock).mtimeMs) < 30 * 60 * 1000; } catch { fresh = false; }
+    if (fresh) die('a harvest is in progress on this brain (found .state/harvest.lock) - retry in a minute');
+  }
   // Brain scaffold (needed for hooks either way).
   const brain = scaffoldBrain(workspace);
   console.log(`Brain: ${brain}`);
+  const releaseLock = acquireBrainLock(brain, 30);
+  if (!releaseLock) die('a harvest grabbed this brain first - retry in a minute');
+  process.on('exit', releaseLock);
 
   // c. Lite STATE — ONE model call over the most recent sessions.
   if (compile && sessions.length) {
@@ -855,6 +883,8 @@ async function cmdInit(args) {
   } else if (!compile) {
     console.log('Skipping starter compile — brain starts empty and grows from your next sessions.');
   }
+
+  releaseLock();
 
   // d. Hook install (idempotent).
   if (noHooks) {

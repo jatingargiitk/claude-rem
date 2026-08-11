@@ -594,6 +594,16 @@ r=1
 echo "$INIT_OUT" | grep -q "Found 3 past session(s) across 1 project(s)" && r=0
 check "init: inventory finds claude + cursor + codex sessions for this workspace" $r
 
+# A fresh harvest lock must make init refuse before touching anything.
+mkdir -p "$BRAIN/.state/harvest.lock"
+STATE_BEFORE=$(cat "$BRAIN/STATE.md")
+LOCKED_OUT=$(run_cli "$FAKE_SETTINGS3" init --yes 2>&1)
+r=1
+echo "$LOCKED_OUT" | grep -q "harvest is in progress" \
+  && [ "$(cat "$BRAIN/STATE.md")" = "$STATE_BEFORE" ] && r=0
+check "init: refuses while a fresh harvest lock is held (brain untouched)" $r
+rmdir "$BRAIN/.state/harvest.lock"
+
 r=1
 grep -q "helloworldfact" "$BRAIN/STATE.md" \
   && git -C "$BRAIN" log --oneline | grep -q "init: brain compiled from" \
