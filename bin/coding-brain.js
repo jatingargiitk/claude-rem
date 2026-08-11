@@ -571,11 +571,27 @@ function buildCorpus(brain, workspace, sessions, cfg) {
 // - an 8x difference that decides whether cold start is ~$3 or ~$60. The
 // orchestrator writes all files; the model only ever returns text.
 
+let ENGINE_CACHE = null;
+function resolveEngine() {
+  if (ENGINE_CACHE) return ENGINE_CACHE;
+  const has = (bin) => spawnSync('sh', ['-c', `command -v ${bin}`], { stdio: 'ignore' }).status === 0;
+  if (has('claude')) ENGINE_CACHE = { bin: 'claude', kind: 'claude' };
+  else if (has('cursor-agent')) ENGINE_CACHE = { bin: 'cursor-agent', kind: 'cursor' };
+  else if (has('agent')) ENGINE_CACHE = { bin: 'agent', kind: 'cursor' };
+  else ENGINE_CACHE = null;
+  return ENGINE_CACHE;
+}
+
 function claudeOnce(prompt, model) {
   return new Promise((resolve) => {
     const t0 = Date.now();
-    const child = spawn('claude', ['-p', prompt, '--model', model,
-      '--setting-sources', '', '--output-format', 'json'],
+    const eng = resolveEngine();
+    if (!eng) return resolve({ ok: false, err: 'no engine: install the Claude Code CLI or cursor-agent', ms: 0, cost: 0 });
+    // Cursor's CLI: text out, its own model namespace, no cost reporting.
+    const argv = eng.kind === 'cursor'
+      ? ['-p', prompt, '--model', 'claude-sonnet-5-high', '--force', '--output-format', 'text']
+      : ['-p', prompt, '--model', model, '--setting-sources', '', '--output-format', 'json'];
+    const child = spawn(eng.bin, argv,
       { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CODING_BRAIN_HARVEST: '1' } });
     let out = '', err = '';
     child.stdout.on('data', (d) => { out += d; });
@@ -583,6 +599,7 @@ function claudeOnce(prompt, model) {
     child.on('close', (code) => {
       const ms = Date.now() - t0;
       if (code !== 0) return resolve({ ok: false, err: err.slice(0, 300), ms, cost: 0 });
+      if (eng.kind === 'cursor') return resolve({ ok: true, text: out, cost: 0, ms });
       try {
         const d = JSON.parse(out);
         resolve({ ok: true, text: d.result || '', cost: d.total_cost_usd || 0, ms });

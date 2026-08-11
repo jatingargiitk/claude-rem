@@ -807,6 +807,49 @@ r=1
   && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" && r=0
 check "distill: refreshes AGENTS.md managed block after harvest" $r
 
+# cursor-agent engine: with harvestEngine=cursor-agent, distill must succeed
+# using Cursor's CLI (text output, no json envelope) and never call claude.
+cat > "$STUBBIN/cursor-agent" <<'CSTUB'
+#!/bin/bash
+echo "CURSORCALL $*" >> "$CLAUDE_STUB_LOG"
+cat <<'EOT'
+FILE: sessions/2026-01-02-cursor-engine.md
+# Cursor engine stub digest
+Date: 2026-01-02
+
+## What happened
+- harvested via cursor-agent engine
+
+FILE: STATE.md
+# Coding Brain — Workspace State
+Last updated: 2026-01-02
+
+## Active projects
+- **ws**: helloworldfact — hello-world script lives in hello.py
+EOT
+CSTUB
+chmod +x "$STUBBIN/cursor-agent"
+python3 - "$BRAIN/config.json" <<'CFG'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d['harvestEngine'] = 'cursor-agent'
+json.dump(d, open(p, 'w'))
+CFG
+C_BEFORE=$(claude_calls)
+bash "$SCRIPTS/distill.sh" "$CLAUDE_T" "$WS" >/dev/null 2>&1
+DRC=$?
+r=1
+[ "$DRC" -eq 0 ] \
+  && [ -f "$BRAIN/sessions/2026-01-02-cursor-engine.md" ] \
+  && grep -q "CURSORCALL" "$CLAUDE_STUB_LOG" \
+  && [ "$(claude_calls)" -eq "$C_BEFORE" ] && r=0
+check "distill: cursor-agent engine harvests without claude" $r
+python3 - "$BRAIN/config.json" <<'CFG'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d.pop('harvestEngine', None)
+json.dump(d, open(p, 'w'))
+CFG
+rm -f "$BRAIN/sessions/2026-01-02-cursor-engine.md" "$STUBBIN/cursor-agent"
+
 # False-success guard: a brain wiped mid-run must be a FAILURE, not success.
 cp -R "$BRAIN" "$TESTWS/brain-snapshot"
 CB_TEST_WIPE=1 bash "$SCRIPTS/distill.sh" "$CLAUDE_T" "$WS" >/dev/null 2>&1

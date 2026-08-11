@@ -210,10 +210,35 @@ Record observations with what produced them and a date, never interpretive concl
 open(out, 'w').write(prompt)
 ASSEMBLE
 
-  RAW=$(claude -p "$(cat "$PROMPT_FILE")" --model "$RUN_MODEL" \
-    --setting-sources "" \
-    --output-format json < /dev/null 2>>"$LOG_FILE")
-  rc=$?
+  # Engine resolution: claude if present, else Cursor's CLI. A Cursor-only
+  # user (no Claude Code installed) previously got a brain that could capture
+  # transcripts but never distill them - recall of emptiness, forever.
+  ENGINE=$(cfg harvestEngine auto)
+  CURSOR_BIN=$(command -v cursor-agent || command -v agent || true)
+  if [ "$ENGINE" = "auto" ]; then
+    if command -v claude >/dev/null 2>&1; then ENGINE=claude
+    elif [ -n "$CURSOR_BIN" ]; then ENGINE=cursor-agent
+    else
+      echo "$(date '+%F %T') no harvest engine (need claude or cursor-agent)" >> "$LOG_FILE"
+      mkdir -p "$STATE_DIR" 2>/dev/null; date +%s > "$STATE_DIR/last_failure"
+      notify "coding-brain" "No harvest engine found — install the Claude Code CLI (or Cursor's cursor-agent)."
+      exit 1
+    fi
+  fi
+  if [ "$ENGINE" = "cursor-agent" ]; then
+    # Cursor's model ids differ from Anthropic's (a raw Anthropic id is
+    # invalid there - learned the hard way); text output, cost not reported.
+    CURSOR_MODEL=$(cfg cursorModel claude-sonnet-5-high)
+    echo "$(date '+%F %T') engine=cursor-agent model=$CURSOR_MODEL" >> "$LOG_FILE"
+    RAW=$("$CURSOR_BIN" -p "$(cat "$PROMPT_FILE")" --model "$CURSOR_MODEL" \
+      --force --output-format text < /dev/null 2>>"$LOG_FILE")
+    rc=$?
+  else
+    RAW=$(claude -p "$(cat "$PROMPT_FILE")" --model "$RUN_MODEL" \
+      --setting-sources "" \
+      --output-format json < /dev/null 2>>"$LOG_FILE")
+    rc=$?
+  fi
   rm -f "$PROMPT_FILE"
 
   # Apply the FILE: blocks ourselves — atomic, path-jailed. A model can only
@@ -227,10 +252,11 @@ ASSEMBLE
     APPLIED=$(python3 - "$BRAIN_DIR" "$RAW_FILE" <<'APPLY'
 import json, os, re, sys
 brain = sys.argv[1]
+raw = open(sys.argv[2]).read()
 try:
-    result = json.loads(open(sys.argv[2]).read()).get('result') or ''
+    result = json.loads(raw).get('result') or ''
 except Exception:
-    print(0); sys.exit(0)
+    result = raw  # cursor-agent emits plain text, not claude's json envelope
 n = 0
 for part in re.split(r'^FILE:[ \t]*', result, flags=re.M)[1:]:
     nl = part.find('\n')
