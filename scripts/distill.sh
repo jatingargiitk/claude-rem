@@ -106,7 +106,28 @@ if ! python3 "$SCRIPT_DIR/filter.py" "$TRANSCRIPT_PATH" "$FILTERED" "$ASSISTANT_
   exit 1
 fi
 
-PROMPT="You are the coding-brain harvester, a headless background agent. A coding-agent session (Claude Code, Cursor, or Codex) in this workspace produced substantial work. Your job:
+# ---- harvest mode -----------------------------------------------------------
+# single-turn (default): everything the harvester needs is assembled into ONE
+# prompt; the model replies with FILE: blocks; THIS script writes the files.
+# Measured basis for the default: the agentic loop below averages $1.65 over
+# 22 turns per harvest (27 receipts); the same work as a single turn costs
+# ~$0.20 - and the recurring harvest is the cost users feel daily.
+# agentic (config "harvestMode": "agentic"): the original tool-using loop,
+# kept as an escape hatch.
+HARVEST_MODE=$(cfg harvestMode single-turn)
+INLINE_CAP=$(cfg distillInlineCapChars 250000)
+
+# Inherited by the agent's own hook processes so the harvest hooks never
+# harvest a harvest run.
+export CODING_BRAIN_HARVEST=1
+
+FILTERED_BYTES=$(wc -c < "$FILTERED" 2>/dev/null | tr -d ' ')
+case "$FILTERED_BYTES" in (*[!0-9]*|"") FILTERED_BYTES=0;; esac
+RUN_MODEL="$MODEL"
+echo "$(date '+%F %T') model=$RUN_MODEL mode=$HARVEST_MODE (filtered ${FILTERED_BYTES}b)" >> "$LOG_FILE"
+
+if [ "$HARVEST_MODE" = "agentic" ]; then
+  PROMPT="You are the coding-brain harvester, a headless background agent. A coding-agent session (Claude Code, Cursor, or Codex) in this workspace produced substantial work. Your job:
 
 1. Read the instructions file $BRAIN_DIR/INSTRUCTIONS.md and follow it exactly.
 2. The session transcript has been PRE-CONDENSED to user messages, assistant text, and tool targets. Read it at: $FILTERED
@@ -115,22 +136,131 @@ PROMPT="You are the coding-brain harvester, a headless background agent. A codin
    Treat transcript claims as candidates; reconcile against evidence (git dirty flags, artifact existence). Drop or soften anything evidence contradicts. Prefer uncertain wording over confident falsehoods.
 4. Update the brain files as INSTRUCTIONS.md specifies, then stop. Do not touch any files outside $BRAIN_DIR."
 
-# Inherited by the headless agent's own hook processes so the harvest hooks
-# never harvest a harvest run.
-export CODING_BRAIN_HARVEST=1
+  # NOTE: `< /dev/null` is mandatory — `claude -p` eats inherited stdin.
+  RAW=$(claude -p "$PROMPT" --model "$RUN_MODEL" \
+    --setting-sources "" \
+    --allowedTools "Read(/${WORKSPACE_ROOT}/**),Write(/${BRAIN_DIR}/**),Edit(/${BRAIN_DIR}/**),Grep,Glob,Bash(git *),Bash(ls *),Bash(wc *),Bash(mkdir *)" \
+    --output-format json < /dev/null 2>>"$LOG_FILE")
+  rc=$?
+else
+  # Assemble the whole harvest into one prompt file (deterministic, free).
+  PROMPT_FILE="$STATE_DIR/prompt-$STEM.txt"
+  python3 - "$BRAIN_DIR" "$FILTERED" "$EVIDENCE_FILE" "$PROMPT_FILE" "$INLINE_CAP" <<'ASSEMBLE'
+import os, sys
+brain, filtered, evidence, out, cap = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], int(sys.argv[5])
 
-# NOTE: `< /dev/null` is mandatory — `claude -p` eats inherited stdin, which
-# hangs/steals input when spawned from a hook or a read loop.
-FILTERED_BYTES=$(wc -c < "$FILTERED" 2>/dev/null | tr -d ' ')
-case "$FILTERED_BYTES" in (*[!0-9]*|"") FILTERED_BYTES=0;; esac
-RUN_MODEL="$MODEL"
-echo "$(date '+%F %T') model=$RUN_MODEL (filtered ${FILTERED_BYTES}b)" >> "$LOG_FILE"
+def read(p, limit=0):
+    try:
+        t = open(p, encoding='utf-8', errors='replace').read()
+    except OSError:
+        return ''
+    return (t[:limit] + '\n[capped]') if limit and len(t) > limit else t
 
-RAW=$(claude -p "$PROMPT" --model "$RUN_MODEL" \
-  --setting-sources "" \
-  --allowedTools "Read(/${WORKSPACE_ROOT}/**),Write(/${BRAIN_DIR}/**),Edit(/${BRAIN_DIR}/**),Grep,Glob,Bash(git *),Bash(ls *),Bash(wc *),Bash(mkdir *)" \
-  --output-format json < /dev/null 2>>"$LOG_FILE")
-rc=$?
+def section(text, start, end):
+    lines = text.split('\n')
+    a = next((i for i, l in enumerate(lines) if l.startswith(start)), -1)
+    if a < 0: return ''
+    b = next((i for i in range(a + 1, len(lines)) if lines[i].startswith(end)), len(lines))
+    return '\n'.join(lines[a:b])
+
+instr = read(os.path.join(brain, 'INSTRUCTIONS.md'))
+digest_fmt = section(instr, '## Step 1:', '## Step 2')      # digest + topic-note formats
+state_fmt  = section(instr, '## Step 3', '## Step 4')       # STATE format
+state = read(os.path.join(brain, 'STATE.md'), 20000)
+rules = read(os.path.join(brain, 'RULES.md'), 8000)
+tdir = os.path.join(brain, 'topics')
+topics, used = [], 0
+try:
+    names = sorted(os.listdir(tdir))
+except OSError:
+    names = []
+for fn in names:
+    if not fn.endswith('.md'): continue
+    t = read(os.path.join(tdir, fn), 12000)
+    if used + len(t) > 90000:
+        topics.append(f'----- topics/{fn} ----- [omitted for size]'); continue
+    topics.append(f'----- topics/{fn} -----\n{t}'); used += len(t)
+transcript = read(filtered, cap)
+
+prompt = f"""You are the coding-brain harvester. ONE coding session just finished; distill it into the brain. Reply ONLY with FILE: blocks — no prose, no tools. This script writes the files; you only return their content.
+
+Emit, in this order:
+1. FILE: sessions/YYYY-MM-DD-<2-4-word-slug>.md — one digest for this session (date from the session, not today). Format:
+{digest_fmt}
+2. FILE: topics/<slug>.md — for EACH topic note this session materially changes, the FULL rewritten note (rewrite in place, newest facts win; cap ~80 lines). Only emit topics that change.
+3. FILE: STATE.md — the FULL rewritten workspace state, LAST. Format:
+{state_fmt}
+Record observations with what produced them and a date, never interpretive conclusions. Reconcile transcript claims against the EVIDENCE section — drop or soften anything it contradicts; prefer uncertain wording over confident falsehoods. Never store secrets/keys/tokens (reference env-var names only).
+
+=== EVIDENCE (deterministic workspace snapshot) ===
+{read(evidence, 15000)}
+
+=== CURRENT STATE.md ===
+{state}
+
+=== CURRENT LEARNED RULES ===
+{rules}
+
+=== CURRENT TOPIC NOTES ===
+{chr(10).join(topics)}
+
+=== SESSION TRANSCRIPT (pre-condensed) ===
+{transcript}
+"""
+open(out, 'w').write(prompt)
+ASSEMBLE
+
+  RAW=$(claude -p "$(cat "$PROMPT_FILE")" --model "$RUN_MODEL" \
+    --setting-sources "" \
+    --output-format json < /dev/null 2>>"$LOG_FILE")
+  rc=$?
+  rm -f "$PROMPT_FILE"
+
+  # Apply the FILE: blocks ourselves — atomic, path-jailed. A model can only
+  # ever name sessions/*.md, topics/*.md, or STATE.md; anything else is dropped.
+  if [ "$rc" -eq 0 ]; then
+    # RAW goes through a file, NOT a pipe: `python3 - <<heredoc` takes the
+    # script itself on stdin, so a piped payload is silently lost (same bug
+    # class as cursor-prompt-hook, caught twice in one day).
+    RAW_FILE="$STATE_DIR/raw-$STEM.json"
+    printf '%s' "$RAW" > "$RAW_FILE"
+    APPLIED=$(python3 - "$BRAIN_DIR" "$RAW_FILE" <<'APPLY'
+import json, os, re, sys
+brain = sys.argv[1]
+try:
+    result = json.loads(open(sys.argv[2]).read()).get('result') or ''
+except Exception:
+    print(0); sys.exit(0)
+n = 0
+for part in re.split(r'^FILE:[ \t]*', result, flags=re.M)[1:]:
+    nl = part.find('\n')
+    if nl < 0: continue
+    rel, body = part[:nl].strip(), part[nl + 1:].strip()
+    m = re.fullmatch(r'(sessions|topics)/([A-Za-z0-9][A-Za-z0-9._-]*\.md)', rel)
+    if m:
+        dst = os.path.join(brain, m.group(1), m.group(2))
+    elif rel == 'STATE.md':
+        dst = os.path.join(brain, 'STATE.md')
+    else:
+        continue
+    if not body: continue
+    tmp = dst + '.tmp-' + str(os.getpid())
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    open(tmp, 'w').write(body + '\n')
+    os.replace(tmp, dst)
+    n += 1
+print(n)
+APPLY
+)
+    rm -f "$RAW_FILE"
+    case "$APPLIED" in (*[!0-9]*|"") APPLIED=0;; esac
+    echo "$(date '+%F %T') single-turn applied $APPLIED file(s)" >> "$LOG_FILE"
+    if [ "$APPLIED" -eq 0 ]; then
+      # A harvest that wrote nothing is a failure, not a quiet success.
+      rc=96
+    fi
+  fi
+fi
 
 # Cost/result receipts (subscription-billed; cost_usd is informational).
 echo "$RAW" | python3 -c "
@@ -200,6 +330,9 @@ if [ "$rc" -eq 0 ]; then
       || echo "$(date '+%F %T') agents-block refresh failed" >> "$LOG_FILE"
   fi
 else
+  # Record the failure even if the brain dir itself was destroyed mid-run -
+  # the recreated marker is what makes the next session's receipt warn.
+  mkdir -p "$STATE_DIR" 2>/dev/null
   date +%s > "$STATE_DIR/last_failure"
   notify "coding-brain" "Harvest failed (exit $rc) — see .coding-brain/.state/harvest.log"
 fi

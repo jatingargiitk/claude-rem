@@ -81,6 +81,30 @@ if [ -n "${CB_TEST_WIPE:-}" ] && [ -n "${BRAIN_DIR:-}" ]; then
 fi
 json() { python3 -c 'import json,sys; print(json.dumps({"result": sys.stdin.read(), "total_cost_usd": 0.01, "num_turns": 1, "duration_ms": 10}))'; }
 case "$*" in
+  *"Reply ONLY with FILE: blocks"*)
+    # single-turn incremental harvest: model returns FILE: blocks, distill
+    # writes them. Unique stub-run line -> committable diff on every call.
+    json <<EOT
+FILE: sessions/2026-01-01-stub-harvest.md
+# Stub harvest digest
+Date: 2026-01-01
+
+## Gotchas / learnings
+- brain hit: reused the deploy path convention from STATE
+- STATE corrected via evidence: repo claimed dirty but git shows clean
+
+FILE: STATE.md
+# Coding Brain — Workspace State
+Last updated: 2026-01-01
+
+## Active projects
+- **ws**: helloworldfact — hello-world script lives in hello.py
+
+## Open threads
+- none
+- stub-run: $$-$RANDOM
+EOT
+    exit 0 ;;
   *"compiling session digests"*)
     json <<'EOT'
 FILE: 2026-08-01-stub-fanout.md
@@ -464,11 +488,12 @@ r=1
 [ "$(claude_calls)" -eq 1 ] && r=0
 check "harvest: exactly one claude call (stubbed, jailed args)" $r
 
+# Single-turn jail is the ABSENCE of tools: the model only returns text, and
+# distill's own apply step path-jails writes to sessions/, topics/, STATE.md.
 r=1
 grep -q -- '--setting-sources' "$CLAUDE_STUB_LOG" \
-  && grep -q "Read(/$WS/\*\*)" "$CLAUDE_STUB_LOG" \
-  && grep -q "Write(/$BRAIN/\*\*)" "$CLAUDE_STUB_LOG" && r=0
-check "harvest: claude invoked with --setting-sources + //path/** jail" $r
+  && ! grep -q -- '--allowedTools' "$CLAUDE_STUB_LOG" && r=0
+check "harvest: single-turn call is isolated and tool-less (jail = apply step)" $r
 
 r=1
 git -C "$BRAIN" log --oneline | grep -q "harvest: Stub harvest digest" && [ -f "$BRAIN/sessions/2026-01-01-stub-harvest.md" ] && r=0
@@ -774,10 +799,11 @@ check "distill: refreshes AGENTS.md managed block after harvest" $r
 cp -R "$BRAIN" "$TESTWS/brain-snapshot"
 CB_TEST_WIPE=1 bash "$SCRIPTS/distill.sh" "$CLAUDE_T" "$WS" >/dev/null 2>&1
 DRC=$?
+# The invariant: nonzero exit + a recorded failure marker. (Which internal
+# signal fires - the post-run guard or applied-0 - depends on harvest mode.)
 r=1
 [ "$DRC" -ne 0 ] \
-  && [ -f "$BRAIN/.state/last_failure" ] \
-  && grep -q "FALSE-SUCCESS GUARD" "$BRAIN/.state/harvest.log" && r=0
+  && [ -f "$BRAIN/.state/last_failure" ] && r=0
 check "distill: brain wiped mid-run reports failure, never success" $r
 rm -rf "$BRAIN"; mv "$TESTWS/brain-snapshot" "$BRAIN"
 # This test made a real (stubbed) claude call; later harvest tests count calls
