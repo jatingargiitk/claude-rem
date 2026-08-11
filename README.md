@@ -253,10 +253,10 @@ and harvests through its `notify` hook. Enable with
 `npx coding-brain init --cursor --codex`.
 
 **I use Cursor but not Claude Code — does it work?**
-Recall and injection, yes. Harvesting currently runs on the Claude Code CLI
-(`claude -p`, your subscription), so you need it installed and logged in
-even if you never open it interactively. A cursor-agent harvest backend is
-on the roadmap.
+Yes. Harvesting prefers the Claude Code CLI when it's installed and falls
+back to Cursor's own `cursor-agent` CLI when it isn't — so a Cursor-only
+machine gets the full loop. Pin either with `harvestEngine` in
+`.coding-brain/config.json`.
 
 ## Requirements
 
@@ -266,10 +266,11 @@ subscription.
 
 ## Roadmap
 
-cursor-agent as an alternative harvest backend · weekly consolidation pass
-over old digests · miss-escalation (repeated corrections auto-promote to
-rules) · more transcript readers (Gemini CLI and friends) · Windows.
-(Codex CLI support: shipped. Blind eval harness: shipped.)
+More transcript readers (Gemini CLI and friends) · MCP server so non-hooked
+tools can pull from the brain · Windows.
+(Shipped: Codex CLI support · blind eval harness · cursor-agent harvest
+fallback · weekly digest consolidation · miss-escalation, where a correction
+repeated across sessions auto-promotes to a binding rule.)
 
 ## Status
 
