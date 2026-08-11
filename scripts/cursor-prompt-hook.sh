@@ -68,21 +68,28 @@ STOP = {'the','and','for','this','that','with','from','what','when','where','hav
 words = {w for w in re.findall(r'[a-z0-9][a-z0-9._-]{3,}', prompt.lower()) if w not in STOP}
 if not words:
     out({})
-scored = []
+# Body hits only count for DISTINCTIVE words - see recall-hook.sh for the
+# incident that motivated the df weighting.
+docs = []
 for fn in sorted(os.listdir(tdir)):
     if not fn.endswith('.md'):
         continue
-    slug = fn[:-3].lower()
     try:
-        body = open(os.path.join(tdir, fn), encoding='utf-8', errors='replace').read()
+        docs.append((fn, open(os.path.join(tdir, fn), encoding='utf-8', errors='replace').read()))
     except OSError:
         continue
+df = {w: sum(1 for _, b in docs if w in b.lower()) for w in words}
+rare_cap = max(1, len(docs) // 3)
+
+scored = []
+for fn, body in docs:
+    slug = fn[:-3].lower()
     low = body.lower()
     score = 0
     for w in words:
         if w in slug or slug in w:
             score += 5
-        elif w in low:
+        elif w in low and df.get(w, 99) <= rare_cap:
             score += 1
     if score >= 3:
         scored.append((score, fn, body))

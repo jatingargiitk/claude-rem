@@ -421,6 +421,18 @@ assert 'alphaword only here' not in c
 " && r=0
 check "cursor-prompt: topic body injected at most once per conversation" $r
 
+# Generic common-English words shared by several topics must NOT match: body
+# hits only count for words distinctive to few notes (df-weighted).
+printf '# other\ncommon shared project words here today\n' > "$BRAIN/topics/other.md"
+printf '# third\ncommon shared project words here today\n' > "$BRAIN/topics/third.md"
+printf '%s' 'common shared project words today' > /dev/null
+CPN=$(cd "$WS" && printf '{"prompt":"common shared words here today update","conversation_id":"cv9"}' \
+  | bash "$SCRIPTS/cursor-prompt-hook.sh")
+r=1
+[ "$CPN" = "{}" ] && r=0
+check "cursor-prompt: generic words across many topics stay silent (df filter)" $r
+rm -f "$BRAIN/topics/other.md" "$BRAIN/topics/third.md"
+
 # ---------------------------------------------------- cursor-recall-hook.sh
 
 CRC=$(cd "$WS" && echo '{}' | bash "$SCRIPTS/cursor-recall-hook.sh")

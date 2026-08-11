@@ -111,23 +111,29 @@ words = {w for w in re.findall(r'[a-z0-9][a-z0-9._-]{3,}', prompt) if w not in S
 if not words:
     sys.exit(0)
 
-scored = []
+# Body hits only count for DISTINCTIVE words. A word appearing in a third of
+# the notes ("companies", "building", "current") carries no signal - counting
+# it let generic prompts match unrelated topics (observed live: a YC-research
+# prompt pulled brand-engine + git-identity).
+docs = []
 for fn in sorted(os.listdir(tdir)):
     if not fn.endswith('.md'):
         continue
-    slug = fn[:-3].lower()
     try:
-        body = open(os.path.join(tdir, fn), encoding='utf-8', errors='replace').read().lower()
+        docs.append((fn, open(os.path.join(tdir, fn), encoding='utf-8', errors='replace').read().lower()))
     except OSError:
         continue
-    # A hit on the topic's own name is worth far more than a passing mention in
-    # its body — "herdr-memory" in the prompt should pick herdr-memory.md even if
-    # another note happens to say the word a few times.
+df = {w: sum(1 for _, b in docs if w in b) for w in words}
+rare_cap = max(1, len(docs) // 3)
+
+scored = []
+for fn, body in docs:
+    slug = fn[:-3].lower()
     score = 0
     for w in words:
         if w in slug or slug in w:
             score += 5
-        elif w in body:
+        elif w in body and df.get(w, 99) <= rare_cap:
             score += 1
     if score >= 3:
         scored.append((score, fn))
