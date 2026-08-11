@@ -22,6 +22,8 @@ WS2="$TESTWS/ws2"
 FAKEHOME="$TESTWS/fakehome"
 # Keep the stable-runtime copy inside the test workspace, never the real HOME.
 export CODING_BRAIN_RUNTIME="$TESTWS/runtime"
+export CODING_BRAIN_QUIET=1
+export CODING_BRAIN_GLOBAL_DIR="$TESTWS/globalhome"
 STUBBIN="$TESTWS/stubbin"
 CLAUDE_STUB_LOG="$TESTWS/claude-calls.log"
 export CLAUDE_STUB_LOG
@@ -391,6 +393,34 @@ RC3=$(printf '{"session_id":"sess-recall-2","cwd":"%s"}' "$WS" | bash "$SCRIPTS/
 r=1
 echo "$RC3" | grep -q "LAST HARVEST FAILED" && r=0
 check "recall: staleness warning after failed harvest" $r
+
+# Global rules (the ~/.gitconfig layer): active file injects everywhere with a
+# receipt flag; an all-comments template stays invisible.
+mkdir -p "$TESTWS/globalhome"
+printf '# just comments\n# - example only\n' > "$TESTWS/globalhome/RULES.md"
+RCG0=$(printf '{"session_id":"sess-glob-0","cwd":"%s"}' "$WS" | bash "$SCRIPTS/recall-hook.sh")
+r=1
+! echo "$RCG0" | grep -q "Global rules" \
+  && ! echo "$RCG0" | grep -q "global rules" && r=0
+check "recall: all-comments global template stays invisible" $r
+
+printf '# personal\n- GLOBALMARKER never force-push main\n' > "$TESTWS/globalhome/RULES.md"
+RCG1=$(printf '{"session_id":"sess-glob-1","cwd":"%s"}' "$WS" | bash "$SCRIPTS/recall-hook.sh")
+r=1
+echo "$RCG1" | grep -q "GLOBALMARKER never force-push main" \
+  && echo "$RCG1" | grep -q "Global rules (all workspaces" \
+  && echo "$RCG1" | grep -q "· global rules" && r=0
+check "recall: active global rules injected with receipt flag" $r
+
+RCG2=$(cd "$WS" && printf '{"session_id":"sess-glob-2"}' | bash "$SCRIPTS/cursor-recall-hook.sh")
+r=1
+echo "$RCG2" | python3 -c "
+import json,sys
+c=json.load(sys.stdin).get('additional_context','')
+assert 'GLOBALMARKER never force-push main' in c
+" >/dev/null 2>&1 && r=0
+check "cursor-recall: global rules reach Cursor sessions too" $r
+rm -f "$TESTWS/globalhome/RULES.md"
 rm -f "$BRAIN/.state/last_failure"
 
 RC4=$(printf '{"session_id":"sess-recall-3","cwd":"%s"}' "$WS" | CODING_BRAIN_HARVEST=1 bash "$SCRIPTS/recall-hook.sh")

@@ -59,6 +59,9 @@ ASSISTANT_CAP=$(cfg assistantCapChars 2500)
 TOTAL_CAP=$(cfg totalCapChars 400000)
 
 notify() {  # notify <title> <message> — glanceable, never interruptive; macOS only
+  # CODING_BRAIN_QUIET: tests drive real failure paths on fixture brains; they
+  # must never reach the user's notification center as if they were real.
+  [ -n "${CODING_BRAIN_QUIET:-}" ] && return 0
   if command -v osascript >/dev/null 2>&1; then
     osascript -e "display notification \"$2\" with title \"$1\"" >/dev/null 2>&1 || true
   fi
