@@ -618,7 +618,11 @@ function writeFileBlocks(dir, text) {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.md$/.test(name)) continue;
     const body = part.slice(nl + 1).trim();
     if (!body) continue;
-    fs.writeFileSync(path.join(dir, name), body + '\n');
+    // Atomic: a recall hook reading mid-compile must never see a half-file.
+    const dst = path.join(dir, name);
+    const tmp = dst + '.tmp-' + process.pid;
+    fs.writeFileSync(tmp, body + '\n');
+    fs.renameSync(tmp, dst);
     written.push(name);
   }
   return written;
@@ -734,7 +738,12 @@ async function fanoutCompile(brain, workspace, sessions, cfg) {
   console.log('Compiling STATE...');
   const sr = await claudeOnce(`[coding-brain:meta]\nWrite the workspace STATE file - a ~100-line current-truth dashboard - from the topic notes below, per the format:\n${stateFmt}\n\nOrder Active projects newest-activity-first. Record observations with their evidence and date, never interpretive conclusions. Never store secrets. Reply with ONLY the STATE file content - no FILE: header, no tools.\n\nTOPIC NOTES:\n\n${topicBlob}\n\nDIGEST LIST: ${digestFiles.join(', ')}`, model);
   logCost('state', sr);
-  if (sr.ok && sr.text.trim()) fs.writeFileSync(path.join(brain, 'STATE.md'), sr.text.trim() + '\n');
+  if (sr.ok && sr.text.trim()) {
+    const dst = path.join(brain, 'STATE.md');
+    const tmp = dst + '.tmp-' + process.pid;
+    fs.writeFileSync(tmp, sr.text.trim() + '\n');
+    fs.renameSync(tmp, dst);
+  }
 
   return { digests: digestCount, topics: topicCount, cost: spent, secs: (Date.now() - t0) / 1000 };
 }
