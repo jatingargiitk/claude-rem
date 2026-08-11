@@ -62,6 +62,18 @@ if [ -f "$BRAIN_DIR/RULES.md" ]; then
 $(cat "$BRAIN_DIR/RULES.md")"
 fi
 
+GLOBAL_RULES="${CODING_BRAIN_GLOBAL_DIR:-$HOME/.coding-brain}/RULES.md"
+GLOBAL_ACTIVE=0
+if [ -f "$GLOBAL_RULES" ] && grep -v '^[[:space:]]*#' "$GLOBAL_RULES" 2>/dev/null | grep -q '[^[:space:]]'; then
+  GLOBAL_ACTIVE=1
+fi
+if [ "$GLOBAL_ACTIVE" -eq 1 ]; then
+  ctx="$ctx
+
+=== Global rules (all workspaces — ~/.coding-brain/RULES.md) ===
+$(grep -v '^[[:space:]]*#' "$GLOBAL_RULES")"
+fi
+
 topics=$(ls "$BRAIN_DIR/topics" 2>/dev/null)
 if [ -n "$topics" ]; then
   ctx="$ctx

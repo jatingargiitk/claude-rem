@@ -36,8 +36,25 @@ const RUNTIME_DIR = process.env.CODING_BRAIN_RUNTIME
   || path.join(os.homedir(), '.coding-brain', 'runtime');
 const SCRIPTS = path.join(RUNTIME_DIR, 'scripts');
 
+const GLOBAL_DIR = process.env.CODING_BRAIN_GLOBAL_DIR || path.join(os.homedir(), '.coding-brain');
+
 function ensureRuntime() {
   fs.mkdirSync(SCRIPTS, { recursive: true });
+  // Seed the global rules file (the ~/.gitconfig layer): personal conventions
+  // injected into EVERY workspace. All-comments template = inactive until the
+  // user writes a first rule.
+  const globalRules = path.join(GLOBAL_DIR, 'RULES.md');
+  if (!fs.existsSync(globalRules)) {
+    fs.mkdirSync(GLOBAL_DIR, { recursive: true });
+    fs.writeFileSync(globalRules, `# Global rules — injected into every workspace's sessions (all tools).
+# Like ~/.gitconfig next to a repo's .git/config: put conventions about YOU
+# here (identity, style, hard nos); workspace facts belong in each brain.
+# One rule per line, "- " prefix. Delete these comments as you like.
+# Examples:
+# - Commit personal repos as <name> <email>; never override per-commit.
+# - Never force-push a default branch.
+`);
+  }
   for (const f of fs.readdirSync(PKG_SCRIPTS)) {
     const src = path.join(PKG_SCRIPTS, f);
     const dst = path.join(SCRIPTS, f);

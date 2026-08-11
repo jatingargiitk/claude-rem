@@ -78,7 +78,14 @@ fi
 # "last harvest 2m ago · <commit title>" told the user about the pipeline;
 # they asked - repeatedly - to be told what context was fetched instead.
 ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
-receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
+GLOBAL_RULES="${CODING_BRAIN_GLOBAL_DIR:-$HOME/.coding-brain}/RULES.md"
+GLOBAL_ACTIVE=0
+if [ -f "$GLOBAL_RULES" ] && grep -v '^[[:space:]]*#' "$GLOBAL_RULES" 2>/dev/null | grep -q '[^[:space:]]'; then
+  GLOBAL_ACTIVE=1
+fi
+GR_FLAG=""
+[ "$GLOBAL_ACTIVE" -eq 1 ] && GR_FLAG=" · global rules"
+receipt="🧠 brain → STATE.md · ${ntopics} topics indexed${GR_FLAG} (harvest ${freshness})${warn}"
 
 # --- Follow-up prompts: relevance-gated, or silent. ------------------------
 # After the first prompt the full STATE dump is already in context, so re-sending
@@ -197,6 +204,14 @@ if [ -f "$BRAIN_DIR/RULES.md" ]; then
   echo
   echo "=== Learned rules (binding conventions) ==="
   cat "$BRAIN_DIR/RULES.md"
+fi
+
+# Global personal rules — the ~/.gitconfig layer: conventions about YOU, not a
+# project, injected into every workspace (identity habits, style, hard nos).
+if [ "$GLOBAL_ACTIVE" -eq 1 ]; then
+  echo
+  echo "=== Global rules (all workspaces — ~/.coding-brain/RULES.md) ==="
+  grep -v '^[[:space:]]*#' "$GLOBAL_RULES"
 fi
 
 topics=$(ls "$BRAIN_DIR/topics" 2>/dev/null)

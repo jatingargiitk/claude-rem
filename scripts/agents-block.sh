@@ -54,6 +54,14 @@ if [ -f "$BRAIN_DIR/.state/last_failure" ]; then
   warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.coding-brain/.state/harvest.log)"
 fi
 ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
+GLOBAL_RULES="${CODING_BRAIN_GLOBAL_DIR:-$HOME/.coding-brain}/RULES.md"
+GLOBAL_SECTION=""
+if [ -f "$GLOBAL_RULES" ] && grep -v '^[[:space:]]*#' "$GLOBAL_RULES" 2>/dev/null | grep -q '[^[:space:]]'; then
+  GLOBAL_SECTION="
+
+=== Global rules (all workspaces — ~/.coding-brain/RULES.md) ===
+$(grep -v '^[[:space:]]*#' "$GLOBAL_RULES")"
+fi
 receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
 
 BLOCK="$START_MARK
@@ -66,7 +74,7 @@ Anything not in it (past sessions, fixes, how-we-did-X) is searchable:
   bash $SCRIPT_DIR/search.sh <query words>
 then READ the top file(s). Use it BEFORE re-deriving or asking the user about
 anything that may have happened in a past session. Open your first reply with
-the receipt line above so the user can see the brain is alive.
+the receipt line above so the user can see the brain is alive.$GLOBAL_SECTION
 $END_MARK"
 
 # Block content is passed via the environment so titles containing quotes,
