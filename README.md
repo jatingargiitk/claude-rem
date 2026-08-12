@@ -279,6 +279,18 @@ npx coding-brain uninstall   # removes hooks; your brain files stay put
 
 ---
 
+## Documentation
+
+- **[Installation](docs/installation.md)**: quick start, flags, marketplace install, uninstall
+- **[How It Works](docs/how-it-works.md)**: the harvest loop, the three memory layers, evidence-checking, injection
+- **[Architecture](docs/architecture.md)**: per-tool hooks, harvest engines, corruption resistance, the viewer
+- **[Configuration](docs/configuration.md)**: `config.json` keys, env vars, the global rules layer, teaching it directly
+- **[Evaluation](docs/evaluation.md)**: the blind ab/eval harness and what honest results look like
+- **[Privacy](docs/privacy.md)**: what stays local (everything), what leaves (one distill call), redaction
+- **[Troubleshooting](docs/troubleshooting.md)**: health checks, common failure modes, starting over
+
+---
+
 ## FAQ
 
 **What does it cost?**
