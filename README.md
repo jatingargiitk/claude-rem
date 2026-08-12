@@ -6,7 +6,7 @@
   <br>
 </h1>
 
-<h4 align="center">Your coding agent forgets everything between sessions. claude-rem remembers: decisions, fixes, and gotchas, briefed into every new session.</h4>
+<h4 align="center">Persistent session memory for Claude Code, Cursor & Codex.</h4>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/claude-rem">

@@ -1,6 +1,6 @@
 # 🧠 claude-rem
 
-**Your coding agent forgets everything between sessions. claude-rem remembers: decisions, fixes, and gotchas, briefed into every new session.**
+**Persistent session memory for Claude Code, Cursor & Codex.**
 
 claude-rem reads each session after it ends, distills what mattered into a
 small briefing of your workspace, verifies it against your actual repos, and
