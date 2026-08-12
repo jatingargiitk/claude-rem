@@ -311,17 +311,32 @@ function installClaudeHooks(opts) {
   const settings = readJsonSoft(SETTINGS_PATH, {});
   settings.hooks = settings.hooks || {};
   const added = [];
+  let repointed = 0;
   for (const { event, command, marker } of CC_HOOKS) {
-    if (hasHookCommand(settings, event, marker)) continue;
+    if (hasHookCommand(settings, event, marker)) {
+      // Marker matches but the command may point at a stale runtime path
+      // (e.g. the pre-rename ~/.coding-brain). Repoint instead of skipping,
+      // or an upgrade leaves hooks calling scripts that no longer exist.
+      for (const g of settings.hooks[event] || []) {
+        for (const h of g.hooks || []) {
+          if (typeof h.command === 'string' && h.command.includes(marker) && h.command !== command) {
+            h.command = command;
+            repointed++;
+          }
+        }
+      }
+      continue;
+    }
     settings.hooks[event] = settings.hooks[event] || [];
     settings.hooks[event].push({ hooks: [{ type: 'command', command }] });
     added.push(event);
   }
   if (opts.dryRun) {
-    console.log(`[dry-run] would ${added.length ? 'add ' + added.join(', ') + ' hook(s) to' : 'leave unchanged'}: ${SETTINGS_PATH}`);
+    console.log(`[dry-run] would ${added.length || repointed ? 'add ' + added.join(', ') + ` hook(s) / repoint ${repointed} to` : 'leave unchanged'}: ${SETTINGS_PATH}`);
     return added;
   }
-  if (added.length) writeJsonAtomic(SETTINGS_PATH, settings);
+  if (added.length || repointed) writeJsonAtomic(SETTINGS_PATH, settings);
+  if (repointed) console.log(`Repointed ${repointed} stale hook command(s) in ${SETTINGS_PATH}`);
   console.log(added.length
     ? `Installed Claude Code hooks (${added.join(', ')}) in ${SETTINGS_PATH}`
     : `Claude Code hooks already installed in ${SETTINGS_PATH}`);
