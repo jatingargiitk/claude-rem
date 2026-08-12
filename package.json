@@ -1,7 +1,7 @@
 {
   "name": "coding-brain",
   "version": "0.1.13",
-  "description": "A compiled brain for Claude Code & Cursor — memory that rewrites itself into current truth, verified against git, and measures its own hit rate.",
+  "description": "One brain for AI coding tools: compiled session memory that rewrites itself into current truth, verified against git. Works with Claude Code, Cursor & Codex.",
   "keywords": [
     "claude",
     "claude-code",
@@ -10,7 +10,8 @@
     "brain",
     "context",
     "agent",
-    "compiled-memory"
+    "compiled-memory",
+    "codex"
   ],
   "bin": {
     "coding-brain": "bin/coding-brain.js"

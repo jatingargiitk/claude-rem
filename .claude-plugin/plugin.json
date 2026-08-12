@@ -1,7 +1,7 @@
 {
   "name": "coding-brain",
-  "version": "0.1.0",
-  "description": "A compiled brain for Claude Code & Cursor — memory that rewrites itself into current truth, verified against git, and measures its own hit rate.",
+  "version": "0.1.13",
+  "description": "One brain for AI coding tools: compiled session memory that rewrites itself into current truth, verified against git. Works with Claude Code, Cursor & Codex.",
   "author": {
     "name": "Jatin Garg"
   },
@@ -12,6 +12,7 @@
     "claude",
     "claude-code",
     "cursor",
+    "codex",
     "memory",
     "brain",
     "context",

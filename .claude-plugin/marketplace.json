@@ -4,14 +4,14 @@
     "name": "Jatin Garg"
   },
   "metadata": {
-    "description": "coding-brain — a compiled brain for Claude Code & Cursor"
+    "description": "coding-brain: one brain for AI coding tools (Claude Code, Cursor & Codex)"
   },
   "plugins": [
     {
       "name": "coding-brain",
-      "version": "0.1.0",
+      "version": "0.1.13",
       "source": ".",
-      "description": "Compiled workspace memory: harvest every session into a current-truth STATE, verified against git, with its own hit-rate metrics"
+      "description": "One brain for AI coding tools: every session harvested into a current-truth briefing, verified against git, shared across Claude Code, Cursor & Codex"
     }
   ]
 }
