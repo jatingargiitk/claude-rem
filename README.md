@@ -43,7 +43,7 @@
   claude-rem reads each session after it ends, distills what mattered into a
   small briefing of your workspace, verifies it against your actual repos, and
   hands that briefing to your agent the moment the next session starts.
-  Explain something once, anywhere, every tool knows it.
+  Tell it something once, anywhere; every tool remembers it.
 </p>
 
 ---
@@ -61,6 +61,11 @@ record. Agents confidently report things that didn't happen, so before
 anything becomes memory it's checked against your actual repos: git status,
 whether the artifact exists. If the session says "built the API" and git says
 otherwise, the brain believes git.
+
+**Why "rem"?** REM sleep is when a brain replays the day and consolidates it
+into long-term memory. That is this tool's entire job: after each session
+ends it replays the transcript, checks it against reality, and consolidates
+what mattered into memory your agent wakes up with.
 
 ---
 
@@ -82,7 +87,8 @@ Or install from the plugin marketplace inside Claude Code:
 ```
 
 Init scans your past sessions (with your consent) and compiles a real
-starting brain, not just a summary. Session digests, a rolling note per
+starting brain, not just a summary, so it remembers your history from day
+one. Session digests, a rolling note per
 project, and the briefing, built by parallel single-shot model calls with a
 cost receipt at the end:
 
@@ -159,24 +165,44 @@ No match, no injection, no receipt. The brain is invisible when it has
 nothing to add.
 
 Behind the receipt sits STATE.md, the briefing your agent reads before you
-type. Real output from a fresh install:
+type. Real output, compiled from real sessions on a two-service workspace:
 
 ```markdown
 ## Active projects
-- **tiny-api** (workspace root): toy Flask API (/health, /items CRUD via
-  sqlite3). Planned in detail but not yet scaffolded; only README.md
-  exists on disk/in git. See topics/tiny-api.md.
+- **webhook-relay** (`relay.py`): verifies Stripe HMAC-SHA256 signatures
+  (constant-time compare), forwards to an internal queue, retries
+  1s/2s/4s/8s/16s then dead-letters. Queue changed from unbounded to
+  bounded (maxsize 1000) with HTTP 429 backpressure on 2026-08-12,
+  root-caused as the fix for a same-day incident where a traffic spike
+  OOM-killed the process and dropped in-flight events.
+- **tiny-api** (`app.py`): Flask items API confirmed working both from
+  shell and under launchd, on port 5057. DB path changed from relative to
+  absolute, which resolved 500s that occurred only under launchd.
 
 ## Conventions
-- tiny-api dev server: port 5057, not 5000 (5000 conflicts with macOS AirPlay).
-- tiny-api: stdlib sqlite3 only, no SQLAlchemy/ORM.
+- webhook-relay: payload bodies are never logged (may contain customer
+  PII) — only event ID + status, per explicit user instruction.
+- tiny-api: port 5057 instead of 5000 — macOS AirPlay Receiver occupies
+  5000, causing "address already in use".
+
+## Open threads
+- webhook-relay: no metrics/alerting on queue depth yet — flagged as
+  needed to catch backpressure situations before they recur.
+- Cross-project gotcha: launchd-run processes do not share the shell's
+  working directory. This caused the tiny-api DB bug; webhook-relay has
+  NOT yet been audited for the same relative-path assumption.
+- Cross-project gotcha: an unbounded internal queue is a silent OOM risk
+  that surfaces only under load. This caused the webhook-relay incident;
+  other queues have not been checked for the same pattern.
 ```
 
-Two things worth noticing. The transcript claimed the app was built. The
-brain checked the repo, found only a README, and wrote "not yet scaffolded"
-instead of believing the story. And that port-5057 rule exists because the
-user typed one line, `brain miss: I had to re-explain we use port 5057`,
-and it became permanent.
+Three things worth noticing. The PII logging rule exists because the user
+said it once, mid-session, and it became a permanent convention. The
+incident entry keeps the root cause and the fix rationale together, not
+just the final code state. And the cross-project gotchas at the bottom are
+the part grep can never give you: the brain generalized each incident into
+a pattern and flagged the *other* service as unaudited for it. That is the
+difference between storing your history and remembering it.
 
 One more thing the injected context always carries: an instruction that
 memory is **leads, not findings**. Open threads are starting points to
@@ -253,8 +279,9 @@ evals.json        # your blind-eval question set
 ```
 
 Most memory tools are diaries. They append every observation forever and
-make you search the pile, and recall gets worse as the pile grows.
-claude-rem rewrites its briefing in place instead, which is the same
+make you search the pile, and recall gets worse as the pile grows. That is
+storage, not remembering. claude-rem rewrites its briefing in place
+instead, the way a brain consolidates during REM sleep, which is the same
 conclusion OpenAI, Anthropic, and Google all landed on this year with their
 background memory-consolidation passes. A bigger pile is not a better
 memory. A cleaner one is.

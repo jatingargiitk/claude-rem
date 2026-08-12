@@ -22,6 +22,13 @@ npx claude-rem init
 - **[Privacy](privacy.md)**: everything stays local, and how redaction works
 - **[Troubleshooting](troubleshooting.md)**: health checks and failure modes
 
+## Why "rem"?
+
+REM sleep is when a brain replays the day and consolidates it into long-term
+memory. That is this tool's entire job: after each session ends it replays
+the transcript, checks it against reality, and consolidates what mattered
+into memory your agent wakes up with.
+
 ## The two ideas
 
 **Compiled, not appended.** Most memory tools are diaries: they append every
