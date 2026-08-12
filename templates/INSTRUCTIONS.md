@@ -1,4 +1,4 @@
-# Coding Brain — Distillation Instructions
+# claude-rem — Distillation Instructions
 
 You are a headless background agent updating the persistent coding brain after a
 work session. The brain lets future sessions in this workspace start with full
@@ -9,7 +9,7 @@ and an evidence snapshot. Read the transcript first — it contains user
 messages, assistant text, and the files/commands the session touched. Then
 follow these steps exactly.
 
-All brain files live in `.coding-brain/` at the workspace root ("the brain
+All brain files live in `.claude-rem/` at the workspace root ("the brain
 dir"). Never write outside it.
 
 ## Privacy — absolute rules
@@ -31,7 +31,7 @@ sparse one.
 
 ## Step 1: Write a session digest
 
-Create or update one file: `.coding-brain/sessions/YYYY-MM-DD-<short-slug>.md`
+Create or update one file: `.claude-rem/sessions/YYYY-MM-DD-<short-slug>.md`
 (date the file by the **session's start date** — the first timestamp in the
 transcript, if present — not today's date, so digests sort by when work began;
 use a 2-4 word slug for what the session was about; if a digest for this same
@@ -69,7 +69,7 @@ session. Do not treat digest open-threads as automatically still true.
 
 ## Step 1.5: Update the topic note (the file future sessions actually read)
 
-`.coding-brain/topics/<topic>.md` — one rolling note per project/topic,
+`.claude-rem/topics/<topic>.md` — one rolling note per project/topic,
 **rewritten in place** every time that project is touched. This is the
 compiled current truth at detail level (STATE is the cross-project dashboard;
 digests are raw history nobody should have to dig through).
@@ -105,7 +105,7 @@ Rules:
 
 ## Step 2: Verify before promoting to STATE
 
-Read `.coding-brain/.state/EVIDENCE.md` (produced by `verify.sh` just before
+Read `.claude-rem/.state/EVIDENCE.md` (produced by `verify.sh` just before
 you ran). Transcript claims are **candidates**. Evidence is what the workspace
 currently shows.
 
@@ -128,7 +128,7 @@ Rules:
    facts. Prefer omitting a detail over writing a confident falsehood.
 6. You may run extra local read-only checks (ls, git status) if evidence is
    thin for a claim you want to promote — but do not block on network, and do
-   not touch files outside `.coding-brain/`.
+   not touch files outside `.claude-rem/`.
 
 **Required when you correct a stale claim:** add one bullet per correction
 under the digest's Gotchas, using this exact prefix so metrics can count it:
@@ -165,7 +165,7 @@ Be honest, not generous: only count reuses that plausibly saved a
 re-explanation. Zero hits in a session where nothing was reused is the
 correct answer.
 
-**Quick notes:** if `.coding-brain/NOTES.md` has pending bullets (written
+**Quick notes:** if `.claude-rem/NOTES.md` has pending bullets (written
 mid-session), fold each into the digest and/or STATE as appropriate, then
 rewrite NOTES.md to contain only its header (clear the folded bullets). A
 note that conflicts with evidence follows the same reconciliation rules as
@@ -182,12 +182,12 @@ silently redirects every future session that reads it (measured failure mode:
 a session asked about publish-state answered origin-sync-state because a STATE
 line framed it that way).
 
-Rewrite `.coding-brain/STATE.md` (replace content, do not append) so it
+Rewrite `.claude-rem/STATE.md` (replace content, do not append) so it
 reflects the workspace *right now*, after Step 2 reconciliation. It is
 injected into every new session, so keep it under ~100 lines. Structure:
 
 ```markdown
-# Coding Brain — Workspace State
+# claude-rem — Workspace State
 Last updated: YYYY-MM-DD
 
 ## Active projects
@@ -217,7 +217,7 @@ Rules bind agent behavior; STATE only informs it. A convention that keeps
 being violated (a `brain miss:` or a recurring footgun) has proven STATE
 alone is not enough — promote it.
 
-The rules file is `.coding-brain/RULES.md` (inside the brain dir; it is
+The rules file is `.claude-rem/RULES.md` (inside the brain dir; it is
 injected into every session by the recall hooks). Promote a convention when
 **either**:
 

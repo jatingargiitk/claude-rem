@@ -1,5 +1,5 @@
 #!/bin/bash
-# coding-brain no-LLM test suite.
+# claude-rem no-LLM test suite.
 #
 # Exercises everything that can be tested WITHOUT a real model call: filter,
 # search ranking, recall injection, harvest debounce/backoff/guard, the full
@@ -21,9 +21,9 @@ WS="$TESTWS/ws"
 WS2="$TESTWS/ws2"
 FAKEHOME="$TESTWS/fakehome"
 # Keep the stable-runtime copy inside the test workspace, never the real HOME.
-export CODING_BRAIN_RUNTIME="$TESTWS/runtime"
-export CODING_BRAIN_QUIET=1
-export CODING_BRAIN_GLOBAL_DIR="$TESTWS/globalhome"
+export CLAUDE_REM_RUNTIME="$TESTWS/runtime"
+export CLAUDE_REM_QUIET=1
+export CLAUDE_REM_GLOBAL_DIR="$TESTWS/globalhome"
 STUBBIN="$TESTWS/stubbin"
 CLAUDE_STUB_LOG="$TESTWS/claude-calls.log"
 export CLAUDE_STUB_LOG
@@ -104,7 +104,7 @@ Date: 2026-01-01
 - STATE corrected via evidence: repo claimed dirty but git shows clean
 
 FILE: STATE.md
-# Coding Brain — Workspace State
+# claude-rem — Workspace State
 Last updated: 2026-01-01
 
 ## Active projects
@@ -138,7 +138,7 @@ EOT
     exit 0 ;;
   *"Write the workspace STATE file"*)
     json <<'EOT'
-# Coding Brain — Workspace State
+# claude-rem — Workspace State
 Last updated: 2026-08-01
 
 ## Active projects
@@ -160,7 +160,7 @@ Date: 2026-01-01
 - STATE corrected via evidence: repo claimed dirty but git shows clean
 EOF
   cat > "$BRAIN_DIR/STATE.md" <<'EOF'
-# Coding Brain — Workspace State
+# claude-rem — Workspace State
 Last updated: 2026-01-01
 
 ## Active projects
@@ -256,7 +256,7 @@ import json, sys
 ws, out = sys.argv[1], sys.argv[2]
 rec = {"type": "user", "cwd": ws, "sessionId": "meta",
        "message": {"role": "user", "content": [{"type": "text",
-         "text": "You are the coding-brain harvester, a headless background agent."}]}}
+         "text": "You are the claude-rem harvester, a headless background agent."}]}}
 open(out, "w").write(json.dumps(rec) + "\n")
 MPY
 
@@ -265,13 +265,13 @@ MUNGED=$(echo "$WS" | sed 's|^/||; s|/|-|g')
 CURSOR_T="$FAKEHOME/.cursor/projects/$MUNGED/agent-transcripts/$UUID2/$UUID2.jsonl"
 
 # Brain fixture in WS (scaffold what init would create, plus test content).
-BRAIN="$WS/.coding-brain"
+BRAIN="$WS/.claude-rem"
 mkdir -p "$BRAIN/sessions" "$BRAIN/topics" "$BRAIN/.state"
 cp "$ROOT/templates/config.json" "$BRAIN/config.json"
 cp "$ROOT/templates/INSTRUCTIONS.md" "$BRAIN/INSTRUCTIONS.md"
 printf '.state/\n' > "$BRAIN/.gitignore"
 cat > "$BRAIN/STATE.md" <<'EOF'
-# Coding Brain — Workspace State
+# claude-rem — Workspace State
 Last updated: 2026-01-01
 
 ## Active projects
@@ -423,10 +423,10 @@ check "cursor-recall: global rules reach Cursor sessions too" $r
 rm -f "$TESTWS/globalhome/RULES.md"
 rm -f "$BRAIN/.state/last_failure"
 
-RC4=$(printf '{"session_id":"sess-recall-3","cwd":"%s"}' "$WS" | CODING_BRAIN_HARVEST=1 bash "$SCRIPTS/recall-hook.sh")
+RC4=$(printf '{"session_id":"sess-recall-3","cwd":"%s"}' "$WS" | CLAUDE_REM_HARVEST=1 bash "$SCRIPTS/recall-hook.sh")
 r=1
 [ -z "$RC4" ] && r=0
-check "recall: recursion guard (CODING_BRAIN_HARVEST)" $r
+check "recall: recursion guard (CLAUDE_REM_HARVEST)" $r
 
 
 # ---------------------------------------------------- cursor-prompt-hook.sh
@@ -509,11 +509,11 @@ check "cursor-recall: valid JSON with additional_context" $r
 hook_json() { printf '{"session_id":"%s","transcript_path":"%s","cwd":"%s"}' "$1" "$2" "$3"; }
 
 # Guard: harvester's own session must never harvest.
-hook_json "$UUID1" "$CLAUDE_T" "$WS" | CODING_BRAIN_HARVEST=1 bash "$SCRIPTS/harvest-hook.sh"
+hook_json "$UUID1" "$CLAUDE_T" "$WS" | CLAUDE_REM_HARVEST=1 bash "$SCRIPTS/harvest-hook.sh"
 sleep 0.5
 r=1
 [ "$(claude_calls)" -eq 0 ] && r=0
-check "harvest: recursion guard (CODING_BRAIN_HARVEST)" $r
+check "harvest: recursion guard (CLAUDE_REM_HARVEST)" $r
 
 # Debounce: small transcript (< threshold) must not spawn.
 hook_json "$UUID1" "$CLAUDE_T" "$WS" | bash "$SCRIPTS/harvest-hook.sh"
@@ -614,7 +614,7 @@ check "cursor-harvest: debounced spawn feeds the same brain" $r
 
 # ---------------------------------------------------- metrics.py direct
 
-mkdir -p "$WS2/.coding-brain/.state"
+mkdir -p "$WS2/.claude-rem/.state"
 T2="$TESTWS/t2.jsonl"
 python3 - "$T2" "$WS2" <<'PY'
 import json, sys
@@ -625,7 +625,7 @@ PY
 python3 "$SCRIPTS/metrics.py" log "$T2" "$WS2" >/dev/null 2>&1
 python3 "$SCRIPTS/metrics.py" log "$T2" "$WS2" >/dev/null 2>&1
 r=1
-python3 - "$WS2/.coding-brain/.state/metrics.jsonl" <<'PY' && r=0
+python3 - "$WS2/.claude-rem/.state/metrics.jsonl" <<'PY' && r=0
 import json, sys
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
 assert len(rows) == 2, rows
@@ -653,11 +653,11 @@ EOF
 
 run_cli() {  # run_cli <settings-file> <args...>
   local settings="$1"; shift
-  (cd "$WS" && CODING_BRAIN_SETTINGS="$settings" \
-    CODING_BRAIN_CLAUDE_DIR="$FAKEHOME/.claude" \
-    CODING_BRAIN_CURSOR_DIR="$FAKEHOME/.cursor" \
-    CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
-    node "$ROOT/bin/coding-brain.js" "$@" 2>&1)
+  (cd "$WS" && CLAUDE_REM_SETTINGS="$settings" \
+    CLAUDE_REM_CLAUDE_DIR="$FAKEHOME/.claude" \
+    CLAUDE_REM_CURSOR_DIR="$FAKEHOME/.cursor" \
+    CLAUDE_REM_CODEX_DIR="$FAKEHOME/.codex" \
+    node "$ROOT/bin/claude-rem.js" "$@" 2>&1)
 }
 
 run_cli "$FAKE_SETTINGS" init --yes --hooks-only >/dev/null
@@ -756,15 +756,15 @@ CODEX_STEM=$(basename "$CODEX_T" .jsonl)
 CALLS_BEFORE=$(claude_calls)
 
 # Guard: harvester's own session must never spawn.
-CODING_BRAIN_HARVEST=1 CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
+CLAUDE_REM_HARVEST=1 CLAUDE_REM_CODEX_DIR="$FAKEHOME/.codex" \
   bash "$SCRIPTS/codex-notify-hook.sh" '{}'
 sleep 0.5
 r=1
 [ "$(claude_calls)" -eq "$CALLS_BEFORE" ] && r=0
-check "codex-notify: recursion guard (CODING_BRAIN_HARVEST)" $r
+check "codex-notify: recursion guard (CLAUDE_REM_HARVEST)" $r
 
 # Debounce: rollout below threshold must not spawn.
-CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
+CLAUDE_REM_CODEX_DIR="$FAKEHOME/.codex" \
   bash "$SCRIPTS/codex-notify-hook.sh" '{"type":"agent-turn-complete"}'
 sleep 1
 r=1
@@ -782,7 +782,7 @@ with open(sys.argv[1], "a") as fh:
                            "content": [{"type": "output_text", "text": "codex filler %d " % i + "w" * 700}]}}
         fh.write(json.dumps(rec) + "\n")
 PY
-CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
+CLAUDE_REM_CODEX_DIR="$FAKEHOME/.codex" \
   bash "$SCRIPTS/codex-notify-hook.sh" '{"type":"agent-turn-complete"}'
 wait_for 30 "[ -f '$BRAIN/.state/$CODEX_STEM' ]"
 r=1
@@ -815,7 +815,7 @@ tline=$(grep -n '^\[projects' "$CODEX_CONFIG" | head -1 | cut -d: -f1)
 check "codex install: notify inserted at top of config.toml (before tables)" $r
 
 r=1
-[ "$(grep -c 'coding-brain:start' "$WS/AGENTS.md")" -eq 1 ] \
+[ "$(grep -c 'claude-rem:start' "$WS/AGENTS.md")" -eq 1 ] \
   && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" \
   && grep -q 'STATE.md' "$WS/AGENTS.md" \
   && grep -q 'brain → ' "$WS/AGENTS.md" && r=0
@@ -826,11 +826,11 @@ CODEX2="$TESTWS/codex2"
 mkdir -p "$CODEX2/sessions"
 printf 'notify = ["/usr/bin/true"]\n' > "$CODEX2/config.toml"
 cp "$CODEX2/config.toml" "$CODEX2/config.toml.orig"
-OUT_FOREIGN=$( (cd "$WS" && CODING_BRAIN_SETTINGS="$FAKE_SETTINGS3" \
-  CODING_BRAIN_CLAUDE_DIR="$FAKEHOME/.claude" \
-  CODING_BRAIN_CURSOR_DIR="$FAKEHOME/.cursor" \
-  CODING_BRAIN_CODEX_DIR="$CODEX2" \
-  node "$ROOT/bin/coding-brain.js" init --yes --hooks-only --codex 2>&1) )
+OUT_FOREIGN=$( (cd "$WS" && CLAUDE_REM_SETTINGS="$FAKE_SETTINGS3" \
+  CLAUDE_REM_CLAUDE_DIR="$FAKEHOME/.claude" \
+  CLAUDE_REM_CURSOR_DIR="$FAKEHOME/.cursor" \
+  CLAUDE_REM_CODEX_DIR="$CODEX2" \
+  node "$ROOT/bin/claude-rem.js" init --yes --hooks-only --codex 2>&1) )
 r=1
 cmp -s "$CODEX2/config.toml" "$CODEX2/config.toml.orig" \
   && echo "$OUT_FOREIGN" | grep -q "Not overwriting" && r=0
@@ -861,7 +861,7 @@ PY
 run_cli "$FAKE_SETTINGS3" harvest >/dev/null
 r=1
 ! grep -q "TAMPERED" "$WS/AGENTS.md" \
-  && grep -q 'coding-brain:start' "$WS/AGENTS.md" \
+  && grep -q 'claude-rem:start' "$WS/AGENTS.md" \
   && grep -q 'LEADS, not findings' "$WS/AGENTS.md" \
   && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" && r=0
 check "distill: refreshes AGENTS.md managed block after harvest" $r
@@ -880,7 +880,7 @@ Date: 2026-01-02
 - harvested via cursor-agent engine
 
 FILE: STATE.md
-# Coding Brain — Workspace State
+# claude-rem — Workspace State
 Last updated: 2026-01-02
 
 ## Active projects
@@ -974,7 +974,7 @@ rm -rf "$BRAIN"; mv "$TESTWS/brain-snapshot" "$BRAIN"
 
 run_cli "$FAKE_SETTINGS3" uninstall >/dev/null
 r=1
-! grep -q 'coding-brain:start' "$WS/AGENTS.md" \
+! grep -q 'claude-rem:start' "$WS/AGENTS.md" \
   && grep -q 'USERCONTENT keep me' "$WS/AGENTS.md" \
   && ! grep -q '^notify' "$CODEX_CONFIG" \
   && grep -q 'trust_level' "$CODEX_CONFIG" && r=0
@@ -991,7 +991,7 @@ UI="http://127.0.0.1:$UI_PORT"
 fetch() { curl -s -m 5 "$1"; }
 
 r=1
-[ -n "$UI_PORT" ] && fetch "$UI/" | grep -q "coding-brain" && r=0
+[ -n "$UI_PORT" ] && fetch "$UI/" | grep -q "claude-rem" && r=0
 check "ui: binds 127.0.0.1 free port + serves the page" $r
 
 r=1
@@ -1045,39 +1045,39 @@ check "ui: digest path traversal rejected" $r
 kill "$UI_PID" 2>/dev/null
 wait "$UI_PID" 2>/dev/null
 
-# `coding-brain ui` with no brain anywhere above cwd: polite error, exit 1.
+# `claude-rem ui` with no brain anywhere above cwd: polite error, exit 1.
 NOBRAIN=$(mktemp -d)
-UIERR=$( (cd "$NOBRAIN" && node "$ROOT/bin/coding-brain.js" ui --no-open 2>&1) )
+UIERR=$( (cd "$NOBRAIN" && node "$ROOT/bin/claude-rem.js" ui --no-open 2>&1) )
 uirc=$?
 r=1
-[ "$uirc" -ne 0 ] && echo "$UIERR" | grep -q "no .coding-brain found" \
-  && echo "$UIERR" | grep -q "coding-brain init" && r=0
+[ "$uirc" -ne 0 ] && echo "$UIERR" | grep -q "no .claude-rem found" \
+  && echo "$UIERR" | grep -q "claude-rem init" && r=0
 check "cli ui: polite error when no brain exists" $r
 rm -rf "$NOBRAIN"
 
-# init with CODING_BRAIN_NO_UI=1 must not spawn the post-install viewer.
+# init with CLAUDE_REM_NO_UI=1 must not spawn the post-install viewer.
 rm -f "$BRAIN/.state/ui.pid"
-CODING_BRAIN_NO_UI=1 run_cli "$FAKE_SETTINGS3" init --yes --hooks-only >/dev/null
+CLAUDE_REM_NO_UI=1 run_cli "$FAKE_SETTINGS3" init --yes --hooks-only >/dev/null
 sleep 0.5
 r=1
 [ ! -f "$BRAIN/.state/ui.pid" ] && ! pgrep -f "ui.py $BRAIN" >/dev/null 2>&1 && r=0
-check "init: CODING_BRAIN_NO_UI=1 suppresses the post-install viewer" $r
+check "init: CLAUDE_REM_NO_UI=1 suppresses the post-install viewer" $r
 
 # --no-hooks: scaffold a brain for a host that drives its own harvests (the herdr
 # plugin) without touching the user's editor config.
 NOHOOKS_WS=$(mktemp -d)
 NOHOOKS_SETTINGS="$NOHOOKS_WS/settings.json"
 echo '{"hooks":{}}' > "$NOHOOKS_SETTINGS"
-NOHOOKS_OUT=$( (cd "$NOHOOKS_WS" && CODING_BRAIN_SETTINGS="$NOHOOKS_SETTINGS" \
-  CODING_BRAIN_CLAUDE_DIR="$FAKEHOME/.claude" \
-  CODING_BRAIN_CURSOR_DIR="$FAKEHOME/.cursor" \
-  CODING_BRAIN_CODEX_DIR="$FAKEHOME/.codex" \
-  CODING_BRAIN_NO_UI=1 node "$ROOT/bin/coding-brain.js" \
+NOHOOKS_OUT=$( (cd "$NOHOOKS_WS" && CLAUDE_REM_SETTINGS="$NOHOOKS_SETTINGS" \
+  CLAUDE_REM_CLAUDE_DIR="$FAKEHOME/.claude" \
+  CLAUDE_REM_CURSOR_DIR="$FAKEHOME/.cursor" \
+  CLAUDE_REM_CODEX_DIR="$FAKEHOME/.codex" \
+  CLAUDE_REM_NO_UI=1 node "$ROOT/bin/claude-rem.js" \
   init --yes --hooks-only --no-hooks --no-ui 2>&1) )
 r=1
-[ -d "$NOHOOKS_WS/.coding-brain" ] \
-  && [ -f "$NOHOOKS_WS/.coding-brain/config.json" ] \
-  && [ -d "$NOHOOKS_WS/.coding-brain/.git" ] \
+[ -d "$NOHOOKS_WS/.claude-rem" ] \
+  && [ -f "$NOHOOKS_WS/.claude-rem/config.json" ] \
+  && [ -d "$NOHOOKS_WS/.claude-rem/.git" ] \
   && ! grep -q 'harvest-hook.sh' "$NOHOOKS_SETTINGS" \
   && echo "$NOHOOKS_OUT" | grep -q 'Skipped hook install' && r=0
 check "init --no-hooks: brain scaffolded, editor config untouched" $r

@@ -13,13 +13,13 @@
 
 if [ -z "$BRAIN_DIR" ]; then
   root="$PWD"
-  while [ "$root" != "/" ] && [ ! -d "$root/.coding-brain" ]; do
+  while [ "$root" != "/" ] && [ ! -d "$root/.claude-rem" ]; do
     root=$(dirname "$root")
   done
-  BRAIN_DIR="$root/.coding-brain"
+  BRAIN_DIR="$root/.claude-rem"
 fi
 if [ ! -d "$BRAIN_DIR" ]; then
-  echo "search.sh: no .coding-brain found (walked up from $PWD; set \$BRAIN_DIR to override)" >&2
+  echo "search.sh: no .claude-rem found (walked up from $PWD; set \$BRAIN_DIR to override)" >&2
   exit 2
 fi
 

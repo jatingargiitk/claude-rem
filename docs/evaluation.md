@@ -1,12 +1,12 @@
 # Evaluation: the blind harness
 
-coding-brain ships its own falsification harness instead of asking you to
+claude-rem ships its own falsification harness instead of asking you to
 trust it.
 
 ## One question
 
 ```bash
-npx coding-brain ab "why is the deploy failing?"
+npx claude-rem ab "why is the deploy failing?"
 ```
 
 Answers the question twice with the same model and tools: once with the
@@ -15,13 +15,13 @@ brain injected, once blind, side by side.
 ## The whole set
 
 ```bash
-npx coding-brain eval
+npx claude-rem eval
 ```
 
-Runs every question in `.coding-brain/evals.json` through both arms, then a
+Runs every question in `.claude-rem/evals.json` through both arms, then a
 third model grades the pair **without knowing which is which**, presentation
 order randomized. Per-question transcripts and verdicts land in
-`.coding-brain/.state/evals/`.
+`.claude-rem/.state/evals/`.
 
 Two design details matter for honesty:
 

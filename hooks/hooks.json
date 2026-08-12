@@ -1,5 +1,5 @@
 {
-  "description": "coding-brain hooks: debounced harvest on Stop, brain injection on UserPromptSubmit",
+  "description": "claude-rem hooks: debounced harvest on Stop, brain injection on UserPromptSubmit",
   "hooks": {
     "Stop": [
       {

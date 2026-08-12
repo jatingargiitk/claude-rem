@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create/refresh/remove the coding-brain managed block in <workspace>/AGENTS.md.
+# Create/refresh/remove the claude-rem managed block in <workspace>/AGENTS.md.
 #
 # Codex has no injection hook; it natively reads AGENTS.md at session start.
 # So the brain's receipt + retrieval instructions live in a managed block
@@ -9,8 +9,8 @@
 # Usage: agents-block.sh <workspace_root> [brain_dir]     # create/refresh
 #        agents-block.sh --remove <workspace_root>        # drop the block
 
-START_MARK="<!-- coding-brain:start -->"
-END_MARK="<!-- coding-brain:end -->"
+START_MARK="<!-- claude-rem:start -->"
+END_MARK="<!-- claude-rem:end -->"
 
 if [ "$1" = "--remove" ]; then
   WORKSPACE_ROOT="$2"
@@ -33,7 +33,7 @@ PY
 fi
 
 WORKSPACE_ROOT="$1"
-BRAIN_DIR="${2:-$WORKSPACE_ROOT/.coding-brain}"
+BRAIN_DIR="${2:-$WORKSPACE_ROOT/.claude-rem}"
 AGENTS="$WORKSPACE_ROOT/AGENTS.md"
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 [ -d "$BRAIN_DIR" ] || exit 0
@@ -51,15 +51,15 @@ fi
 lastlearn=$(git -C "$BRAIN_DIR" log -1 --format='%s' 2>/dev/null)
 warn=""
 if [ -f "$BRAIN_DIR/.state/last_failure" ]; then
-  warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.coding-brain/.state/harvest.log)"
+  warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.claude-rem/.state/harvest.log)"
 fi
 ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
-GLOBAL_RULES="${CODING_BRAIN_GLOBAL_DIR:-$HOME/.coding-brain}/RULES.md"
+GLOBAL_RULES="${CLAUDE_REM_GLOBAL_DIR:-$HOME/.claude-rem}/RULES.md"
 GLOBAL_SECTION=""
 if [ -f "$GLOBAL_RULES" ] && grep -v '^[[:space:]]*#' "$GLOBAL_RULES" 2>/dev/null | grep -q '[^[:space:]]'; then
   GLOBAL_SECTION="
 
-=== Global rules (all workspaces — ~/.coding-brain/RULES.md) ===
+=== Global rules (all workspaces — ~/.claude-rem/RULES.md) ===
 $(grep -v '^[[:space:]]*#' "$GLOBAL_RULES")"
 fi
 receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
@@ -68,7 +68,7 @@ BLOCK="$START_MARK
 ## Coding brain (managed block — refreshed automatically, do not edit)
 $receipt
 
-Read \`.coding-brain/STATE.md\` FIRST — as LEADS, not findings: open threads are starting points to investigate, status claims need re-verification before repeating, and it is the compiled briefing
+Read \`.claude-rem/STATE.md\` FIRST — as LEADS, not findings: open threads are starting points to investigate, status claims need re-verification before repeating, and it is the compiled briefing
 for this workspace, distilled and evidence-checked from previous sessions.
 Anything not in it (past sessions, fixes, how-we-did-X) is searchable:
   bash $SCRIPT_DIR/search.sh <query words>
@@ -79,10 +79,10 @@ $END_MARK"
 
 # Block content is passed via the environment so titles containing quotes,
 # backslashes, or backticks can never break out of the string.
-CODING_BRAIN_BLOCK="$BLOCK" python3 - "$AGENTS" "$START_MARK" "$END_MARK" <<'PY'
+CLAUDE_REM_BLOCK="$BLOCK" python3 - "$AGENTS" "$START_MARK" "$END_MARK" <<'PY'
 import os, re, sys
 path, start, end = sys.argv[1], sys.argv[2], sys.argv[3]
-block = os.environ["CODING_BRAIN_BLOCK"]
+block = os.environ["CLAUDE_REM_BLOCK"]
 try:
     text = open(path, encoding="utf-8").read()
 except FileNotFoundError:

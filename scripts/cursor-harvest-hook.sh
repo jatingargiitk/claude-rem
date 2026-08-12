@@ -1,5 +1,5 @@
 #!/bin/bash
-# Cursor stop-hook adapter → coding-brain harvester.
+# Cursor stop-hook adapter → claude-rem harvester.
 #
 # Cursor project hooks run from the project root and pass hook JSON
 # (status / conversation_id / transcript_path) on stdin. When a substantial
@@ -10,7 +10,7 @@
 # ONE brain fed by both tools.
 
 # Never harvest the harvester's own headless session.
-if [ -n "$CODING_BRAIN_HARVEST" ]; then
+if [ -n "$CLAUDE_REM_HARVEST" ]; then
   cat > /dev/null
   echo '{}'
   exit 0
@@ -32,7 +32,7 @@ EOF
 [ -z "$status" ] && status="completed"
 
 root="$PWD"
-BRAIN_DIR="$root/.coding-brain"
+BRAIN_DIR="$root/.claude-rem"
 STATE_DIR="$BRAIN_DIR/.state"
 
 if [ "$status" != "completed" ] || [ -z "$conversation_id" ] || [ -z "$transcript_path" ] || [ ! -f "$transcript_path" ] || [ ! -d "$BRAIN_DIR" ]; then

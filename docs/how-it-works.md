@@ -6,7 +6,7 @@
 session ends ──► condense transcript (no LLM, <private> stripped)
              ──► evidence snapshot (git status of your repos)
              ──► ONE model call: returns digest + topic + STATE as text
-             ──► coding-brain applies the files itself (atomic, path-jailed)
+             ──► claude-rem applies the files itself (atomic, path-jailed)
              ──► git commit
 session starts ─► receipt + briefing injected; later prompts get
                   relevance-matched topic notes, or silence
@@ -23,7 +23,7 @@ calls. Each harvest is a single-turn call, not an agentic loop.
 ## What the brain holds
 
 ```
-<workspace>/.coding-brain/
+<workspace>/.claude-rem/
   STATE.md          # the ~100-line briefing, injected at session start
   topics/<slug>.md  # rolling per-project detail, rewritten in place
   sessions/         # immutable session digests (raw history)
@@ -39,13 +39,13 @@ Three layers with different lifetimes:
   evolves.
 - **sessions/** are immutable history: what actually happened, when.
   Digests older than 30 days can be merged into monthly rollups with
-  `coding-brain consolidate`.
+  `claude-rem consolidate`.
 
 ## Compiled, not appended
 
 Most memory tools are diaries: they append every observation forever and
 make you search the pile, and recall gets worse as the pile grows.
-coding-brain rewrites its briefing in place instead. A bigger pile is not a
+claude-rem rewrites its briefing in place instead. A bigger pile is not a
 better memory. A cleaner one is.
 
 ## Evidence-checking

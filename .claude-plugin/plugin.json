@@ -1,12 +1,12 @@
 {
-  "name": "coding-brain",
-  "version": "0.1.13",
-  "description": "One brain for AI coding tools: compiled session memory that rewrites itself into current truth, verified against git. Works with Claude Code, Cursor & Codex.",
+  "name": "claude-rem",
+  "version": "0.2.0",
+  "description": "A brain that remembers everything: compiled session memory for AI coding tools. Works with Claude Code, Cursor & Codex.",
   "author": {
     "name": "Jatin Garg"
   },
-  "repository": "https://github.com/jatingargiitk/coding-brain",
-  "homepage": "https://github.com/jatingargiitk/coding-brain#readme",
+  "repository": "https://github.com/jatingargiitk/claude-rem",
+  "homepage": "https://github.com/jatingargiitk/claude-rem#readme",
   "license": "Apache-2.0",
   "keywords": [
     "claude",

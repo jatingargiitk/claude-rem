@@ -1,10 +1,10 @@
 #!/bin/bash
-# Gather workspace evidence for the coding-brain harvester.
+# Gather workspace evidence for the claude-rem harvester.
 # Transcript claims are candidates; this file is what the world currently shows.
 # Called by distill.sh before the headless agent runs. Local-only, no network.
 #
 # Usage: verify.sh [WORKSPACE_ROOT]
-# Writes: <brain>/.state/EVIDENCE.md  (brain = $BRAIN_DIR or <root>/.coding-brain)
+# Writes: <brain>/.state/EVIDENCE.md  (brain = $BRAIN_DIR or <root>/.claude-rem)
 
 set -u
 
@@ -12,7 +12,7 @@ WORKSPACE_ROOT="${1:-$PWD}"
 cd "$WORKSPACE_ROOT" || exit 1
 WORKSPACE_ROOT="$PWD"
 
-BRAIN_DIR="${BRAIN_DIR:-$WORKSPACE_ROOT/.coding-brain}"
+BRAIN_DIR="${BRAIN_DIR:-$WORKSPACE_ROOT/.claude-rem}"
 STATE_DIR="$BRAIN_DIR/.state"
 OUT="$STATE_DIR/EVIDENCE.md"
 mkdir -p "$STATE_DIR"
@@ -30,7 +30,7 @@ git_summary() {  # git_summary <dir> <label>
 }
 
 {
-  echo "# Coding Brain — Evidence Snapshot"
+  echo "# claude-rem — Evidence Snapshot"
   echo "Generated: $(date '+%F %T %Z')"
   echo "Workspace: $WORKSPACE_ROOT"
   echo

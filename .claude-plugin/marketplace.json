@@ -1,17 +1,17 @@
 {
-  "name": "coding-brain",
+  "name": "claude-rem",
   "owner": {
     "name": "Jatin Garg"
   },
   "metadata": {
-    "description": "coding-brain: one brain for AI coding tools (Claude Code, Cursor & Codex)"
+    "description": "claude-rem: a brain that remembers everything (Claude Code, Cursor & Codex)"
   },
   "plugins": [
     {
-      "name": "coding-brain",
-      "version": "0.1.13",
+      "name": "claude-rem",
+      "version": "0.2.0",
       "source": ".",
-      "description": "One brain for AI coding tools: every session harvested into a current-truth briefing, verified against git, shared across Claude Code, Cursor & Codex"
+      "description": "A brain that remembers everything: every session compiled into a current-truth briefing, verified against git, shared across Claude Code, Cursor & Codex"
     }
   ]
 }

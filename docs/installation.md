@@ -4,7 +4,7 @@
 
 ```bash
 cd ~/your-workspace        # the directory you open your coding agent in
-npx coding-brain init
+npx claude-rem init
 ```
 
 `init` does five things, in order:
@@ -35,8 +35,8 @@ npx coding-brain init
 ## From the Claude Code plugin marketplace
 
 ```
-/plugin marketplace add jatingargiitk/coding-brain
-/plugin install coding-brain
+/plugin marketplace add jatingargiitk/claude-rem
+/plugin install claude-rem
 ```
 
 ## Requirements
@@ -50,9 +50,9 @@ npx coding-brain init
 ## Uninstall
 
 ```bash
-npx coding-brain uninstall
+npx claude-rem uninstall
 ```
 
 Removes the hooks from your editor config. Your brain files
-(`.coding-brain/` in each workspace) are left untouched: they're plain
+(`.claude-rem/` in each workspace) are left untouched: they're plain
 markdown in a git repo, and they're yours.

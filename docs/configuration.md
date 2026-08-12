@@ -1,6 +1,6 @@
 # Configuration
 
-## `.coding-brain/config.json`
+## `.claude-rem/config.json`
 
 Per-workspace settings. All keys optional.
 
@@ -23,19 +23,19 @@ tool touches can be redirected.
 
 | Variable | Redirects |
 |---|---|
-| `CODING_BRAIN_CLAUDE_DIR` | where Claude Code transcripts are read from (default `~/.claude`) |
-| `CODING_BRAIN_CURSOR_DIR` | where Cursor transcripts are read from (default `~/.cursor`) |
-| `CODING_BRAIN_CODEX_DIR` | where Codex sessions are read from (default `~/.codex`) |
-| `CODING_BRAIN_SETTINGS` | the Claude Code settings file hooks are installed into |
-| `CODING_BRAIN_GLOBAL_DIR` | the global dir (`~/.coding-brain`) |
-| `CODING_BRAIN_RUNTIME` | the runtime scripts dir hooks point at |
-| `CODING_BRAIN_DIR` | pin recall to an explicit brain (used by `ab`/`eval`) |
-| `CODING_BRAIN_NO_UI` | `1` = never auto-open the viewer after `init` |
-| `CODING_BRAIN_HARVEST` | set by the harvester on its own model calls; recursion guard, don't set manually |
+| `CLAUDE_REM_CLAUDE_DIR` | where Claude Code transcripts are read from (default `~/.claude`) |
+| `CLAUDE_REM_CURSOR_DIR` | where Cursor transcripts are read from (default `~/.cursor`) |
+| `CLAUDE_REM_CODEX_DIR` | where Codex sessions are read from (default `~/.codex`) |
+| `CLAUDE_REM_SETTINGS` | the Claude Code settings file hooks are installed into |
+| `CLAUDE_REM_GLOBAL_DIR` | the global dir (`~/.claude-rem`) |
+| `CLAUDE_REM_RUNTIME` | the runtime scripts dir hooks point at |
+| `CLAUDE_REM_DIR` | pin recall to an explicit brain (used by `ab`/`eval`) |
+| `CLAUDE_REM_NO_UI` | `1` = never auto-open the viewer after `init` |
+| `CLAUDE_REM_HARVEST` | set by the harvester on its own model calls; recursion guard, don't set manually |
 
 ## `RULES.md`: the global layer
 
-`~/.coding-brain/RULES.md` holds conventions about *you* (identity, style,
+`~/.claude-rem/RULES.md` holds conventions about *you* (identity, style,
 hard nos), one rule per line. It's injected into every workspace's
 sessions across all tools: the `~/.gitconfig` of the system. Workspace
 facts belong in each workspace's brain, not here.

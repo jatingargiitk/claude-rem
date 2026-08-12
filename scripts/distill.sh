@@ -1,6 +1,6 @@
 #!/bin/bash
-# coding-brain harvester engine. Spawned by the harvest hooks (or by
-# `coding-brain harvest`); never runs inside the user's chat session.
+# claude-rem harvester engine. Spawned by the harvest hooks (or by
+# `claude-rem harvest`); never runs inside the user's chat session.
 #
 # Engine: `claude -p` on the user's existing Claude subscription — no API key.
 #  - Isolation: --setting-sources "" (no CLAUDE.md, no user hooks, no plugins).
@@ -27,7 +27,7 @@ WORKSPACE_ROOT="$PWD"
 # isn't already resolvable (so an explicit PATH always wins).
 command -v claude >/dev/null 2>&1 || export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-BRAIN_DIR="${BRAIN_DIR:-$WORKSPACE_ROOT/.coding-brain}"
+BRAIN_DIR="${BRAIN_DIR:-$WORKSPACE_ROOT/.claude-rem}"
 export BRAIN_DIR
 STATE_DIR="$BRAIN_DIR/.state"
 LOCK_DIR="$STATE_DIR/harvest.lock"
@@ -59,9 +59,9 @@ ASSISTANT_CAP=$(cfg assistantCapChars 2500)
 TOTAL_CAP=$(cfg totalCapChars 400000)
 
 notify() {  # notify <title> <message> — glanceable, never interruptive; macOS only
-  # CODING_BRAIN_QUIET: tests drive real failure paths on fixture brains; they
+  # CLAUDE_REM_QUIET: tests drive real failure paths on fixture brains; they
   # must never reach the user's notification center as if they were real.
-  [ -n "${CODING_BRAIN_QUIET:-}" ] && return 0
+  [ -n "${CLAUDE_REM_QUIET:-}" ] && return 0
   if command -v osascript >/dev/null 2>&1; then
     osascript -e "display notification \"$2\" with title \"$1\"" >/dev/null 2>&1 || true
   fi
@@ -73,7 +73,7 @@ notify() {  # notify <title> <message> — glanceable, never interruptive; macOS
 # keeps decisions and gotchas and drops play-by-play. Same compaction bet as
 # STATE - a bigger pile is not a better memory - applied to the one layer
 # that still grows monotonically. Runs weekly after a harvest, or on demand
-# via `coding-brain consolidate`.
+# via `claude-rem consolidate`.
 consolidate_pass() {
   local after_days min_n manifest
   after_days=$(cfg consolidateAfterDays 30)
@@ -130,7 +130,7 @@ GROUPS
       printf '\n' >> "$corpus"
     done
     IFS="$IFS_SAVE"
-    local cprompt="[coding-brain:meta]
+    local cprompt="[claude-rem:meta]
 You are consolidating old session digests into one rollup. Below are digests from ${month} for project '${proj}'. Merge into ONE file that keeps: decisions (dated), gotchas/learnings, and where-things-live facts likely still true. Drop play-by-play. Max ~70 lines. Never store secrets. Do not use tools.
 Reply ONLY with:
 FILE: ${rollup}
@@ -178,7 +178,7 @@ CAPPLY
       IFS="$IFS_SAVE2"
       local n; n=$(echo "$files" | tr ',' '\n' | wc -l | tr -d ' ')
       git -C "$BRAIN_DIR" add -A >> "$LOG_FILE" 2>&1
-      git -C "$BRAIN_DIR" -c user.name="coding-brain" -c user.email="coding-brain@local" \
+      git -C "$BRAIN_DIR" -c user.name="claude-rem" -c user.email="claude-rem@local" \
         commit -qm "consolidate: $month $proj ($n digests -> 1 rollup)" >> "$LOG_FILE" 2>&1
       echo "$(date '+%F %T') consolidated $month/$proj ($n -> 1)" >> "$LOG_FILE"
     fi
@@ -220,7 +220,7 @@ if [ ! -d "$BRAIN_DIR/.git" ]; then
   git -C "$BRAIN_DIR" init -q &&
     printf '.state/\n' > "$BRAIN_DIR/.gitignore" &&
     git -C "$BRAIN_DIR" add -A &&
-    git -C "$BRAIN_DIR" -c user.name="coding-brain" -c user.email="coding-brain@local" \
+    git -C "$BRAIN_DIR" -c user.name="claude-rem" -c user.email="claude-rem@local" \
       commit -qm "baseline: brain before versioned harvests" >> "$LOG_FILE" 2>&1
 fi
 
@@ -239,7 +239,7 @@ FILTERED="$STATE_DIR/filtered-$STEM.txt"
 if ! python3 "$SCRIPT_DIR/filter.py" "$TRANSCRIPT_PATH" "$FILTERED" "$ASSISTANT_CAP" "$TOTAL_CAP" >> "$LOG_FILE" 2>&1; then
   echo "$(date '+%F %T') filter failed" >> "$LOG_FILE"
   date +%s > "$STATE_DIR/last_failure"
-  notify "coding-brain" "Harvest failed (filter) — see .coding-brain/.state/harvest.log"
+  notify "claude-rem" "Harvest failed (filter) — see .claude-rem/.state/harvest.log"
   exit 1
 fi
 
@@ -256,7 +256,7 @@ INLINE_CAP=$(cfg distillInlineCapChars 250000)
 
 # Inherited by the agent's own hook processes so the harvest hooks never
 # harvest a harvest run.
-export CODING_BRAIN_HARVEST=1
+export CLAUDE_REM_HARVEST=1
 
 FILTERED_BYTES=$(wc -c < "$FILTERED" 2>/dev/null | tr -d ' ')
 case "$FILTERED_BYTES" in (*[!0-9]*|"") FILTERED_BYTES=0;; esac
@@ -264,7 +264,7 @@ RUN_MODEL="$MODEL"
 echo "$(date '+%F %T') model=$RUN_MODEL mode=$HARVEST_MODE (filtered ${FILTERED_BYTES}b)" >> "$LOG_FILE"
 
 if [ "$HARVEST_MODE" = "agentic" ]; then
-  PROMPT="You are the coding-brain harvester, a headless background agent. A coding-agent session (Claude Code, Cursor, or Codex) in this workspace produced substantial work. Your job:
+  PROMPT="You are the claude-rem harvester, a headless background agent. A coding-agent session (Claude Code, Cursor, or Codex) in this workspace produced substantial work. Your job:
 
 1. Read the instructions file $BRAIN_DIR/INSTRUCTIONS.md and follow it exactly.
 2. The session transcript has been PRE-CONDENSED to user messages, assistant text, and tool targets. Read it at: $FILTERED
@@ -319,7 +319,7 @@ for fn in names:
     topics.append(f'----- topics/{fn} -----\n{t}'); used += len(t)
 transcript = read(filtered, cap)
 
-prompt = f"""You are the coding-brain harvester. ONE coding session just finished; distill it into the brain. Reply ONLY with FILE: blocks — no prose, no tools. This script writes the files; you only return their content.
+prompt = f"""You are the claude-rem harvester. ONE coding session just finished; distill it into the brain. Reply ONLY with FILE: blocks — no prose, no tools. This script writes the files; you only return their content.
 
 Emit, in this order:
 1. FILE: sessions/YYYY-MM-DD-<2-4-word-slug>.md — one digest for this session (date from the session, not today). Format:
@@ -358,7 +358,7 @@ ASSEMBLE
     else
       echo "$(date '+%F %T') no harvest engine (need claude or cursor-agent)" >> "$LOG_FILE"
       mkdir -p "$STATE_DIR" 2>/dev/null; date +%s > "$STATE_DIR/last_failure"
-      notify "coding-brain" "No harvest engine found — install the Claude Code CLI (or Cursor's cursor-agent)."
+      notify "claude-rem" "No harvest engine found — install the Claude Code CLI (or Cursor's cursor-agent)."
       exit 1
     fi
   fi
@@ -457,7 +457,7 @@ if [ "$rc" -eq 0 ]; then
   git -C "$BRAIN_DIR" add -A >> "$LOG_FILE" 2>&1
   if ! git -C "$BRAIN_DIR" diff --cached --quiet 2>/dev/null; then
     # Commit message = what was learned (newest changed digest's title), so the
-    # receipt and `coding-brain log` read like news, not session-ids.
+    # receipt and `claude-rem log` read like news, not session-ids.
     TITLE=$(git -C "$BRAIN_DIR" diff --cached --name-only | grep '^sessions/' | head -1)
     if [ -n "$TITLE" ] && [ -f "$BRAIN_DIR/$TITLE" ]; then
       TITLE=$(head -1 "$BRAIN_DIR/$TITLE" | sed 's/^# *//' | cut -c1-60)
@@ -472,7 +472,7 @@ if [ "$rc" -eq 0 ]; then
       [ -n "$TITLE" ] && TITLE="$TITLE (update)"
     fi
     [ -z "$TITLE" ] && TITLE="${STEM:0:8}"
-    git -C "$BRAIN_DIR" -c user.name="coding-brain" -c user.email="coding-brain@local" \
+    git -C "$BRAIN_DIR" -c user.name="claude-rem" -c user.email="claude-rem@local" \
       commit -qm "harvest: $TITLE" >> "$LOG_FILE" 2>&1
     CHANGED=$(git -C "$BRAIN_DIR" diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
   fi
@@ -483,12 +483,12 @@ if [ "$rc" -eq 0 ]; then
   # line at the start of your next session already reports freshness. Opt back
   # in with "notifyOnSuccess": true in config.json.
   if [ "$(cfg notifyOnSuccess false)" = "true" ]; then
-    notify "coding-brain" "Harvested: ${TITLE:-${STEM:0:8}} — updated: ${short:-nothing new}"
+    notify "claude-rem" "Harvested: ${TITLE:-${STEM:0:8}} — updated: ${short:-nothing new}"
   fi
   # Codex reads AGENTS.md natively (no injection hook): refresh the managed
   # receipt block if the user enabled Codex support (markers present). Cheap,
   # deterministic, no model call — and never creates the file uninvited.
-  if [ -f "$WORKSPACE_ROOT/AGENTS.md" ] && grep -q 'coding-brain:start' "$WORKSPACE_ROOT/AGENTS.md" 2>/dev/null; then
+  if [ -f "$WORKSPACE_ROOT/AGENTS.md" ] && grep -q 'claude-rem:start' "$WORKSPACE_ROOT/AGENTS.md" 2>/dev/null; then
     "$SCRIPT_DIR/agents-block.sh" "$WORKSPACE_ROOT" "$BRAIN_DIR" >> "$LOG_FILE" 2>&1 \
       || echo "$(date '+%F %T') agents-block refresh failed" >> "$LOG_FILE"
   fi
@@ -497,7 +497,7 @@ else
   # the recreated marker is what makes the next session's receipt warn.
   mkdir -p "$STATE_DIR" 2>/dev/null
   date +%s > "$STATE_DIR/last_failure"
-  notify "coding-brain" "Harvest failed (exit $rc) — see .coding-brain/.state/harvest.log"
+  notify "claude-rem" "Harvest failed (exit $rc) — see .claude-rem/.state/harvest.log"
 fi
 
 # Effectiveness metrics — runs after the digest exists so corrections count.
@@ -549,7 +549,7 @@ for n, info in seen.items():
     rules_norm += ' ' + n    # dedup within this run too
     promoted += 1
 if adds:
-    header = '' if rules else '# Coding Brain — Learned Rules\n\n'
+    header = '' if rules else '# claude-rem — Learned Rules\n\n'
     with open(rules_path, 'a', encoding='utf-8') as fh:
         if header and not rules:
             fh.write(header)
@@ -561,7 +561,7 @@ case "$PROMOTED" in (*[!0-9]*|"") PROMOTED=0;; esac
 if [ "$PROMOTED" -gt 0 ]; then
   echo "$(date '+%F %T') miss-escalation promoted $PROMOTED rule(s)" >> "$LOG_FILE"
   git -C "$BRAIN_DIR" add RULES.md >> "$LOG_FILE" 2>&1
-  git -C "$BRAIN_DIR" -c user.name="coding-brain" -c user.email="coding-brain@local" \
+  git -C "$BRAIN_DIR" -c user.name="claude-rem" -c user.email="claude-rem@local" \
     commit -qm "rules: auto-promoted $PROMOTED repeated correction(s)" >> "$LOG_FILE" 2>&1
 fi
 

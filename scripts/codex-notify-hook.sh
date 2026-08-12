@@ -1,23 +1,23 @@
 #!/bin/bash
-# Codex notify hook → coding-brain harvester.
+# Codex notify hook → claude-rem harvester.
 #
 # Codex has no Stop hook; instead its config.toml `notify` key runs an
 # external program with one JSON argument on events like agent-turn-complete.
 # The JSON schema is not stable, so we don't depend on it: on every
 # invocation we scan for rollouts modified in the last few minutes, map each
 # to its workspace via the session_meta cwd (first line), and apply the
-# standard coding-brain debounce before spawning the detached harvester.
+# standard claude-rem debounce before spawning the detached harvester.
 #
 # Debounce offset advances only on successful distill (distill.sh writes it),
 # so skipped/failed harvests keep their credit and retry on the next notify.
 
 # Never harvest a harvester's own headless session.
-if [ -n "$CODING_BRAIN_HARVEST" ]; then
+if [ -n "$CLAUDE_REM_HARVEST" ]; then
   exit 0
 fi
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-CODEX_DIR="${CODING_BRAIN_CODEX_DIR:-$HOME/.codex}"
+CODEX_DIR="${CLAUDE_REM_CODEX_DIR:-$HOME/.codex}"
 SESSIONS_DIR="$CODEX_DIR/sessions"
 [ -d "$SESSIONS_DIR" ] || exit 0
 
@@ -44,12 +44,12 @@ except Exception:
 
   # Find the workspace that owns a coding brain (walk up, like git discovery).
   root="$cwd"
-  while [ "$root" != "/" ] && [ ! -d "$root/.coding-brain" ]; do
+  while [ "$root" != "/" ] && [ ! -d "$root/.claude-rem" ]; do
     root=$(dirname "$root")
   done
-  [ -d "$root/.coding-brain" ] || continue
+  [ -d "$root/.claude-rem" ] || continue
 
-  BRAIN_DIR="$root/.coding-brain"
+  BRAIN_DIR="$root/.claude-rem"
   STATE_DIR="$BRAIN_DIR/.state"
   mkdir -p "$STATE_DIR"
 

@@ -2,15 +2,15 @@
   <br>
   🧠
   <br>
-  coding-brain
+  claude-rem
   <br>
 </h1>
 
-<h4 align="center">One brain for AI coding tools. Your agent never starts from zero again.</h4>
+<h4 align="center">A brain that remembers everything. One memory for all your AI coding tools.</h4>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/coding-brain">
-    <img src="https://img.shields.io/npm/v/coding-brain?color=green" alt="npm">
+  <a href="https://www.npmjs.com/package/claude-rem">
+    <img src="https://img.shields.io/npm/v/claude-rem?color=green" alt="npm">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">
@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  coding-brain reads each session after it ends, distills what mattered into a
+  claude-rem reads each session after it ends, distills what mattered into a
   small briefing of your workspace, verifies it against your actual repos, and
   hands that briefing to your agent the moment the next session starts.
   Explain something once, anywhere, every tool knows it.
@@ -70,15 +70,15 @@ Install with a single command:
 
 ```bash
 cd ~/your-workspace        # the directory you open your coding agent in
-npx coding-brain init
+npx claude-rem init
 ```
 
 Or install from the plugin marketplace inside Claude Code:
 
 ```bash
-/plugin marketplace add jatingargiitk/coding-brain
+/plugin marketplace add jatingargiitk/claude-rem
 
-/plugin install coding-brain
+/plugin install claude-rem
 ```
 
 Init scans your past sessions (with your consent) and compiles a real
@@ -102,7 +102,7 @@ automatic.
 - ✅ **Evidence-checked**: transcript claims are reconciled against git and the
   filesystem before they're promoted to memory
 - 🔁 **One brain, every tool**: Claude Code, Cursor, and Codex feed and read the
-  same store; also available as a [Herdr](https://herdr.dev) plugin (`herdr-memory`)
+  same store
 - 🎯 **Relevance-gated injection**: full briefing on the first prompt; after that,
   only the project note your prompt is actually about, or silence
 - 📊 **Self-measuring**: `ab` and `eval` run blind brain-vs-no-brain comparisons
@@ -130,7 +130,7 @@ automatic.
 One store, three tools:
 
 ```bash
-npx coding-brain init --cursor --codex
+npx claude-rem init --cursor --codex
 ```
 
 Something you explained in a Cursor session is already known to your next
@@ -188,7 +188,7 @@ became a reason to stop working on it.
 ### The viewer
 
 ```bash
-npx coding-brain ui
+npx claude-rem ui
 ```
 
 Opens a local dashboard (127.0.0.1 only) that leads with the brain
@@ -204,15 +204,15 @@ while you look at it, Ctrl-C closes it.
 ## It Measures Itself
 
 ```bash
-npx coding-brain ab "why is the deploy failing?"   # one question, blind vs brain
-npx coding-brain eval                              # your whole question set, judged blind
+npx claude-rem ab "why is the deploy failing?"   # one question, blind vs brain
+npx claude-rem eval                              # your whole question set, judged blind
 ```
 
-`eval` answers every question in `.coding-brain/evals.json` twice, once
+`eval` answers every question in `.claude-rem/evals.json` twice, once
 with the brain injected, once with the brain physically hidden from disk,
 then a third model grades both answers without knowing which is which,
 presentation order randomized. Per-question transcripts and verdicts land in
-`.coding-brain/.state/evals/`.
+`.claude-rem/.state/evals/`.
 
 I run this on my own workspace and publish the honest results: the brain
 wins decisively on debugging-with-history and architecture questions, loses
@@ -229,7 +229,7 @@ asking you to trust it.
 session ends ──► condense transcript (no LLM, <private> stripped)
              ──► evidence snapshot (git status of your repos)
              ──► ONE model call: returns digest + topic + STATE as text
-             ──► coding-brain applies the files itself (atomic, path-jailed)
+             ──► claude-rem applies the files itself (atomic, path-jailed)
              ──► git commit
 session starts ─► receipt + briefing injected; later prompts get
                   relevance-matched topic notes, or silence
@@ -241,7 +241,7 @@ orchestrator writes exactly three kinds of file, `sessions/*.md`,
 One call per debounced session-end (about 40KB of new transcript before one
 fires), in the background, never blocking your session.
 
-The brain lives at `<workspace>/.coding-brain/`:
+The brain lives at `<workspace>/.claude-rem/`:
 
 ```
 STATE.md          # the ~100-line briefing, injected at session start
@@ -254,7 +254,7 @@ evals.json        # your blind-eval question set
 
 Most memory tools are diaries. They append every observation forever and
 make you search the pile, and recall gets worse as the pile grows.
-coding-brain rewrites its briefing in place instead, which is the same
+claude-rem rewrites its briefing in place instead, which is the same
 conclusion OpenAI, Anthropic, and Google all landed on this year with their
 background memory-consolidation passes. A bigger pile is not a better
 memory. A cleaner one is.
@@ -266,15 +266,15 @@ memory. A cleaner one is.
 You only ever need the first one.
 
 ```
-npx coding-brain init        # scan history, compile the starting brain, install hooks
-npx coding-brain ui          # open the local dashboard
-npx coding-brain status      # is it alive, what does it hold, last commits
-npx coding-brain search <w>  # ranked search over everything it knows
-npx coding-brain log         # what it learned, when
-npx coding-brain harvest     # force a harvest right now
-npx coding-brain ab "<q>"    # one question: blind vs brain, side by side
-npx coding-brain eval        # the whole question set, blind-judged
-npx coding-brain uninstall   # removes hooks; your brain files stay put
+npx claude-rem init        # scan history, compile the starting brain, install hooks
+npx claude-rem ui          # open the local dashboard
+npx claude-rem status      # is it alive, what does it hold, last commits
+npx claude-rem search <w>  # ranked search over everything it knows
+npx claude-rem log         # what it learned, when
+npx claude-rem harvest     # force a harvest right now
+npx claude-rem ab "<q>"    # one question: blind vs brain, side by side
+npx claude-rem eval        # the whole question set, blind-judged
+npx claude-rem uninstall   # removes hooks; your brain files stay put
 ```
 
 ---
@@ -306,7 +306,7 @@ confident-sounding wrong facts into STATE, and every session after it
 inherits them. Every harvest runs on the best model the host offers. Cost is
 controlled by *frequency* (debounce) and by doing each harvest in one turn
 instead of an agentic loop, not by degrading quality. Pin something else
-with `model` in `.coding-brain/config.json` if you disagree.
+with `model` in `.claude-rem/config.json` if you disagree.
 
 **Does my code leave my machine?**
 Only to your own Claude subscription for the distill call, which is where
@@ -338,7 +338,7 @@ that exit when done.
 Yes. Harvesting prefers the Claude Code CLI when it's installed and falls
 back to Cursor's own `cursor-agent` CLI when it isn't, so a Cursor-only
 machine gets the full loop. Pin either with `harvestEngine` in
-`.coding-brain/config.json`.
+`.claude-rem/config.json`.
 
 ---
 
@@ -355,7 +355,8 @@ tools can pull from the brain · Windows.
 
 ## Status
 
-v0.1.x. Young and moving fast. I've been running it daily across a
+v0.2.x, formerly published as `coding-brain` (through 0.1.13); same tool,
+renamed. Young and moving fast. I've been running it daily across a
 40-project workspace for weeks; it's how this README knows what it's
 talking about, including the parts where it lost. Issues and war stories
 welcome.

@@ -4,7 +4,7 @@
 # an `additional_context` field.
 
 # Recursion guard: a harvester's internal calls must inject nothing.
-if [ -n "$CODING_BRAIN_HARVEST" ]; then
+if [ -n "$CLAUDE_REM_HARVEST" ]; then
   cat > /dev/null
   echo '{}'
   exit 0
@@ -13,7 +13,7 @@ fi
 cat > /dev/null  # consume hook input; we don't need it
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-BRAIN_DIR="$PWD/.coding-brain"
+BRAIN_DIR="$PWD/.claude-rem"
 STATE_FILE="$BRAIN_DIR/STATE.md"
 
 if [ ! -f "$STATE_FILE" ]; then
@@ -39,7 +39,7 @@ fi
 lastlearn=$(git -C "$BRAIN_DIR" log -1 --format='%s' 2>/dev/null)
 warn=""
 if [ -f "$BRAIN_DIR/.state/last_failure" ]; then
-  warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.coding-brain/.state/harvest.log)"
+  warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.claude-rem/.state/harvest.log)"
 fi
 ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
 receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
@@ -62,7 +62,7 @@ if [ -f "$BRAIN_DIR/RULES.md" ]; then
 $(cat "$BRAIN_DIR/RULES.md")"
 fi
 
-GLOBAL_RULES="${CODING_BRAIN_GLOBAL_DIR:-$HOME/.coding-brain}/RULES.md"
+GLOBAL_RULES="${CLAUDE_REM_GLOBAL_DIR:-$HOME/.claude-rem}/RULES.md"
 GLOBAL_ACTIVE=0
 if [ -f "$GLOBAL_RULES" ] && grep -v '^[[:space:]]*#' "$GLOBAL_RULES" 2>/dev/null | grep -q '[^[:space:]]'; then
   GLOBAL_ACTIVE=1
@@ -70,7 +70,7 @@ fi
 if [ "$GLOBAL_ACTIVE" -eq 1 ]; then
   ctx="$ctx
 
-=== Global rules (all workspaces — ~/.coding-brain/RULES.md) ===
+=== Global rules (all workspaces — ~/.claude-rem/RULES.md) ===
 $(grep -v '^[[:space:]]*#' "$GLOBAL_RULES")"
 fi
 
@@ -78,7 +78,7 @@ topics=$(ls "$BRAIN_DIR/topics" 2>/dev/null)
 if [ -n "$topics" ]; then
   ctx="$ctx
 
-Topic notes — one rolling file per project, compiled current truth. When the task goes deep on a project, read .coding-brain/topics/<file> (prefer these over session digests, which are raw history):
+Topic notes — one rolling file per project, compiled current truth. When the task goes deep on a project, read .claude-rem/topics/<file> (prefer these over session digests, which are raw history):
 $topics"
 fi
 

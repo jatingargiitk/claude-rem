@@ -8,17 +8,17 @@
 | Cursor | `sessionStart` + `beforeSubmitPrompt` hooks | `stop` hook |
 | Codex CLI | managed marker block in `AGENTS.md` | `notify` hook in `config.toml` |
 
-All hooks point at one stable location: `~/.coding-brain/runtime/scripts/`.
+All hooks point at one stable location: `~/.claude-rem/runtime/scripts/`.
 That copy exists because `npx` caches are evictable: a hook pointing into
 the npx cache dies silently weeks later. `init` refreshes the runtime copy
 on every run.
 
 ## Two kinds of directory
 
-- `~/.coding-brain/` (global): the runtime scripts every hook calls,
+- `~/.claude-rem/` (global): the runtime scripts every hook calls,
   `RULES.md` (your global conventions, injected into every workspace), and
   the brain for the home workspace itself.
-- `<workspace>/.coding-brain/` (per workspace): that workspace's brain.
+- `<workspace>/.claude-rem/` (per workspace): that workspace's brain.
   Discovery walks up from the session's cwd, like git.
 
 ## Harvest engine
@@ -28,10 +28,10 @@ Harvests shell out to a CLI engine in one-shot print mode:
 1. `claude -p` when the Claude Code CLI is installed (default)
 2. `cursor-agent -p` as automatic fallback on Cursor-only machines
 
-The spawned engine runs with `CODING_BRAIN_HARVEST=1`, which the recall and
+The spawned engine runs with `CLAUDE_REM_HARVEST=1`, which the recall and
 harvest hooks treat as a recursion guard: a harvester's own model call can
 never trigger injection or another harvest. Harvester prompts are tagged
-`[coding-brain:meta]`, and the transcript scanner skips meta transcripts,
+`[claude-rem:meta]`, and the transcript scanner skips meta transcripts,
 so the brain never compiles its own exhaust.
 
 ## Corruption resistance
@@ -45,7 +45,7 @@ real during development:
   and renamed, so a reader never sees a half-written file.
 - **False-success guard**: a harvest that finishes while the brain
   directory no longer exists reports failure, never success.
-- **Git audit trail**: every harvest is one commit; `coding-brain log`
+- **Git audit trail**: every harvest is one commit; `claude-rem log`
   shows exactly what changed and any harvest is one revert away.
 
 ## The viewer

@@ -1,8 +1,8 @@
-site_name: coding-brain
-site_description: One brain for AI coding tools. Your agent never starts from zero again.
-site_url: https://jatingargiitk.github.io/coding-brain/
-repo_url: https://github.com/jatingargiitk/coding-brain
-repo_name: jatingargiitk/coding-brain
+site_name: claude-rem
+site_description: A brain that remembers everything. One memory for all your AI coding tools.
+site_url: https://jatingargiitk.github.io/claude-rem/
+repo_url: https://github.com/jatingargiitk/claude-rem
+repo_name: jatingargiitk/claude-rem
 
 theme:
   name: material

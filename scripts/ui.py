@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""coding-brain viewer — read-only local UI for a .coding-brain dir.
+"""claude-rem viewer — read-only local UI for a .claude-rem dir.
 
 Shows the memory stream (one git commit per harvest), STATE, digests,
 metrics, and the harvest log. Binds 127.0.0.1 only. python3 stdlib, no deps.
@@ -38,7 +38,7 @@ def _discover_brain(argv_dir: str | None) -> Path | None:
         return p if p.is_dir() else None
     cur = Path.cwd()
     while True:
-        cand = cur / ".coding-brain"
+        cand = cur / ".claude-rem"
         if cand.is_dir():
             return cand
         if cur.parent == cur:
@@ -62,7 +62,7 @@ while i < len(_args):
 
 BRAIN = _discover_brain(_brain_arg)
 if BRAIN is None:
-    print("ui.py: no .coding-brain found (pass a brain dir, set $BRAIN_DIR, or run inside a workspace with one)", file=sys.stderr)
+    print("ui.py: no .claude-rem found (pass a brain dir, set $BRAIN_DIR, or run inside a workspace with one)", file=sys.stderr)
     sys.exit(2)
 STATE_DIR = BRAIN / ".state"
 SESSIONS = BRAIN / "sessions"
@@ -152,7 +152,7 @@ def _receipt() -> str:
             if notes:
                 title = _note_title(notes[0])
         mid = f" · learned: {title}" if title else ""
-    warn = " · WARNING: last update failed — see .coding-brain/.state/harvest.log" \
+    warn = " · WARNING: last update failed — see .claude-rem/.state/harvest.log" \
         if (STATE_DIR / "last_failure").exists() else ""
     return f"🧠 updated {freshness}{mid}{warn}"
 
@@ -321,7 +321,7 @@ def _generate_brief(head: str) -> None:
             for p in sorted(TOPICS.glob("*.md"), key=lambda x: x.stat().st_mtime, reverse=True)[:8]:
                 topics.append(f"--- topic: {p.name} ---\n" + _unfence(_read(p, 2500)))
         prompt = (
-            "[coding-brain:meta]\n"
+            "[claude-rem:meta]\n"
             "You are the voice of a developer's coding memory. Below is the compiled "
             "state of their workspace. Write a briefing that makes them feel 'this "
             "thing KNOWS my work'. Second person ('you'), concrete — name real "
@@ -343,7 +343,7 @@ def _generate_brief(head: str) -> None:
                 ["--model", "claude-sonnet-5-high", "--force", "--output-format", "text"]
                 if kind == "cursor" else
                 ["--model", "claude-haiku-4-5-20251001", "--setting-sources", "", "--output-format", "json"])
-            env = dict(os.environ, CODING_BRAIN_HARVEST="1")
+            env = dict(os.environ, CLAUDE_REM_HARVEST="1")
             out = subprocess.check_output(argv, text=True, timeout=150, env=env,
                                           stderr=subprocess.DEVNULL)
             if kind != "cursor":
@@ -621,7 +621,7 @@ def main():
     port = _port_arg if _port_arg is not None else _cfg_port()
     server = _bind(port)
     actual = server.server_address[1]
-    print(f"coding-brain viewer → http://127.0.0.1:{actual}", flush=True)
+    print(f"claude-rem viewer → http://127.0.0.1:{actual}", flush=True)
     print(f"  brain: {BRAIN}", flush=True)
     try:
         server.serve_forever()

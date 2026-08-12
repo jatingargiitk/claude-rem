@@ -1,15 +1,15 @@
-# 🧠 coding-brain
+# 🧠 claude-rem
 
-**One brain for AI coding tools. Your agent never starts from zero again.**
+**A brain that remembers everything. One memory for all your AI coding tools.**
 
-coding-brain reads each session after it ends, distills what mattered into a
+claude-rem reads each session after it ends, distills what mattered into a
 small briefing of your workspace, verifies it against your actual repos, and
 hands that briefing to your agent the moment the next session starts. Claude
 Code, Cursor, and Codex all feed the same store, and all three read from it.
 
 ```bash
 cd ~/your-workspace
-npx coding-brain init
+npx claude-rem init
 ```
 
 ## Where to go
@@ -25,7 +25,7 @@ npx coding-brain init
 ## The two ideas
 
 **Compiled, not appended.** Most memory tools are diaries: they append every
-observation forever and recall gets worse as the pile grows. coding-brain
+observation forever and recall gets worse as the pile grows. claude-rem
 rewrites a ~100-line briefing in place; the store gets cleaner as it grows.
 
 **Evidence over claims.** A transcript is a set of claims, not a record.

@@ -13,7 +13,7 @@
 #   stdout: {"additional_context": "..."} or {}
 
 # Recursion guard: a harvester's internal agent call must inject nothing.
-if [ -n "$CODING_BRAIN_HARVEST" ]; then
+if [ -n "$CLAUDE_REM_HARVEST" ]; then
   cat > /dev/null
   echo '{}'
   exit 0
@@ -41,14 +41,14 @@ if not isinstance(prompt, str) or not prompt.strip():
     out({})
 
 # Find the workspace brain (walk up from cwd, like git discovery).
-root = os.environ.get('CODING_BRAIN_DIR')
+root = os.environ.get('CLAUDE_REM_DIR')
 if root and os.path.isdir(root):
     brain = root
 else:
     d = os.getcwd()
     brain = None
     while d != '/':
-        cand = os.path.join(d, '.coding-brain')
+        cand = os.path.join(d, '.claude-rem')
         if os.path.isdir(cand):
             brain = cand; break
         d = os.path.dirname(d)
@@ -108,7 +108,7 @@ os.makedirs(seen_dir, exist_ok=True)
 # Receipt names what was pulled; failure warning is the only telemetry kept.
 warn = ''
 if os.path.exists(os.path.join(brain, '.state', 'last_failure')):
-    warn = ' · WARNING: LAST HARVEST FAILED — brain may be stale (.coding-brain/.state/harvest.log)'
+    warn = ' · WARNING: LAST HARVEST FAILED — brain may be stale (.claude-rem/.state/harvest.log)'
 names = ', '.join(fn[:-3] for _, fn, _ in picked)
 lines = [
     '[CODING BRAIN] This prompt matches notes from previous sessions — LEADS, not findings. Use them to start the investigation, not to skip it; verify any status claim before repeating it; answer the question as asked, at the size asked. The match below is LEXICAL — a word overlap, not understanding. If the prompt could name something else in this workspace (a similarly-named repo or tool), confirm which one the user means before building on this note.',

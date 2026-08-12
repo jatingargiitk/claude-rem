@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// coding-brain — a compiled brain for Claude Code, Cursor & Codex.
+// claude-rem — a compiled brain for Claude Code, Cursor & Codex.
 // CLI entry. Node >= 18, ZERO npm dependencies.
 //
 // Subcommands:
@@ -11,10 +11,10 @@
 //   uninstall  remove hooks (leaves the brain dir untouched)
 //
 // Env overrides (used by tests; defaults are the real locations):
-//   CODING_BRAIN_CLAUDE_DIR   default ~/.claude
-//   CODING_BRAIN_CURSOR_DIR   default ~/.cursor
-//   CODING_BRAIN_CODEX_DIR    default ~/.codex
-//   CODING_BRAIN_SETTINGS     default ~/.claude/settings.json
+//   CLAUDE_REM_CLAUDE_DIR   default ~/.claude
+//   CLAUDE_REM_CURSOR_DIR   default ~/.cursor
+//   CLAUDE_REM_CODEX_DIR    default ~/.codex
+//   CLAUDE_REM_SETTINGS     default ~/.claude/settings.json
 
 'use strict';
 
@@ -30,15 +30,26 @@ const TEMPLATES = path.join(PKG_ROOT, 'templates');
 
 // Hooks must reference a STABLE path. When run via `npx`, PKG_ROOT lives in
 // the npx cache, which npm can evict at any time — hooks pointing there die
-// silently weeks later. So we copy scripts/ to ~/.coding-brain/runtime/ and
+// silently weeks later. So we copy scripts/ to ~/.claude-rem/runtime/ and
 // point every installed hook at that copy (refreshed on each init/run).
-const RUNTIME_DIR = process.env.CODING_BRAIN_RUNTIME
-  || path.join(os.homedir(), '.coding-brain', 'runtime');
+const RUNTIME_DIR = process.env.CLAUDE_REM_RUNTIME
+  || path.join(os.homedir(), '.claude-rem', 'runtime');
 const SCRIPTS = path.join(RUNTIME_DIR, 'scripts');
 
-const GLOBAL_DIR = process.env.CODING_BRAIN_GLOBAL_DIR || path.join(os.homedir(), '.coding-brain');
+const GLOBAL_DIR = process.env.CLAUDE_REM_GLOBAL_DIR || path.join(os.homedir(), '.claude-rem');
 
 function ensureRuntime() {
+  // Migration from the coding-brain era: adopt the legacy global dir (rules,
+  // home-workspace brain) when the new one doesn't exist yet. Only when no
+  // explicit override is in play.
+  try {
+    const legacyGlobal = path.join(os.homedir(), '.coding-brain');
+    if (!process.env.CLAUDE_REM_GLOBAL_DIR && !process.env.CLAUDE_REM_RUNTIME
+        && !fs.existsSync(GLOBAL_DIR) && fs.existsSync(legacyGlobal)) {
+      fs.renameSync(legacyGlobal, GLOBAL_DIR);
+      console.log('Migrated global dir: ~/.coding-brain -> ~/.claude-rem');
+    }
+  } catch { /* non-fatal; a fresh global dir is created below */ }
   fs.mkdirSync(SCRIPTS, { recursive: true });
   // Seed the global rules file (the ~/.gitconfig layer): personal conventions
   // injected into EVERY workspace. All-comments template = inactive until the
@@ -63,10 +74,10 @@ function ensureRuntime() {
   }
 }
 
-const CLAUDE_DIR = process.env.CODING_BRAIN_CLAUDE_DIR || path.join(os.homedir(), '.claude');
-const CURSOR_DIR = process.env.CODING_BRAIN_CURSOR_DIR || path.join(os.homedir(), '.cursor');
-const CODEX_DIR = process.env.CODING_BRAIN_CODEX_DIR || path.join(os.homedir(), '.codex');
-const SETTINGS_PATH = process.env.CODING_BRAIN_SETTINGS || path.join(os.homedir(), '.claude', 'settings.json');
+const CLAUDE_DIR = process.env.CLAUDE_REM_CLAUDE_DIR || path.join(os.homedir(), '.claude');
+const CURSOR_DIR = process.env.CLAUDE_REM_CURSOR_DIR || path.join(os.homedir(), '.cursor');
+const CODEX_DIR = process.env.CLAUDE_REM_CODEX_DIR || path.join(os.homedir(), '.codex');
+const SETTINGS_PATH = process.env.CLAUDE_REM_SETTINGS || path.join(os.homedir(), '.claude', 'settings.json');
 
 // ------------------------------------------------------------------ helpers
 
@@ -84,7 +95,7 @@ function writeJsonAtomic(p, obj) {
 function findBrain(startDir) {
   let dir = path.resolve(startDir);
   for (;;) {
-    const cand = path.join(dir, '.coding-brain');
+    const cand = path.join(dir, '.claude-rem');
     if (fs.existsSync(cand) && fs.statSync(cand).isDirectory()) return cand;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
@@ -113,7 +124,7 @@ async function ask(question, def) {
 }
 
 function die(msg) {
-  console.error(`coding-brain: ${msg}`);
+  console.error(`claude-rem: ${msg}`);
   process.exit(1);
 }
 
@@ -194,14 +205,18 @@ function walkJsonl(dir, depth) {
   return out;
 }
 
-// Transcripts produced by coding-brain itself — harvester runs, backfill
+// Transcripts produced by claude-rem itself — harvester runs, backfill
 // compiles, ab/eval probes — land in the same stores as real sessions and
 // carry the same cwd. Left in, they inflate the corpus (measured: 131 of 339
 // "sessions" in one workspace were exhaust) and the backfill then spends real
 // model budget compiling the brain's own diary. Sniff the head and skip.
 const META_MARKERS = [
-  'You are the coding-brain harvester',
+  'You are the claude-rem harvester',
   'You are initializing a coding brain',
+  '[claude-rem:meta]',
+  // Legacy markers from when this tool was published as coding-brain: old
+  // meta transcripts on upgraded machines must stay excluded.
+  'You are the coding-brain harvester',
   '[coding-brain:meta]',
 ];
 function isMetaTranscript(p) {
@@ -332,7 +347,7 @@ function uninstallClaudeHooks(opts) {
   }
   if (opts.dryRun) { console.log(`[dry-run] would remove ${removed} hook entr${removed === 1 ? 'y' : 'ies'} from ${SETTINGS_PATH}`); return; }
   if (removed) writeJsonAtomic(SETTINGS_PATH, settings);
-  console.log(`Removed ${removed} coding-brain hook entr${removed === 1 ? 'y' : 'ies'} from ${SETTINGS_PATH}`);
+  console.log(`Removed ${removed} claude-rem hook entr${removed === 1 ? 'y' : 'ies'} from ${SETTINGS_PATH}`);
 }
 
 const CURSOR_HOOKS = [
@@ -378,7 +393,7 @@ function uninstallCursorHooks(workspace, opts) {
   }
   if (opts.dryRun) { console.log(`[dry-run] would remove ${removed} entr${removed === 1 ? 'y' : 'ies'} from ${hooksPath}`); return; }
   if (removed) writeJsonAtomic(hooksPath, cfg);
-  if (removed) console.log(`Removed ${removed} coding-brain hook entr${removed === 1 ? 'y' : 'ies'} from ${hooksPath}`);
+  if (removed) console.log(`Removed ${removed} claude-rem hook entr${removed === 1 ? 'y' : 'ies'} from ${hooksPath}`);
 }
 
 // ------------------------------------------------------------ codex support
@@ -389,10 +404,10 @@ function uninstallCursorHooks(workspace, opts) {
 // (refreshed after every harvest by distill.sh).
 
 const CODEX_NOTIFY_MARKER = 'codex-notify-hook.sh';
-const CODEX_COMMENT = '# coding-brain harvest hook (managed by coding-brain; `npx coding-brain uninstall` removes it)';
+const CODEX_COMMENT = '# claude-rem harvest hook (managed by claude-rem; `npx claude-rem uninstall` removes it)';
 // Pre-0.1.6 installs wrote the comment without the npx prefix — uninstall
 // must still recognize and remove it.
-const CODEX_COMMENT_LEGACY = '# coding-brain harvest hook (managed by coding-brain; `coding-brain uninstall` removes it)';
+const CODEX_COMMENT_LEGACY = '# claude-rem harvest hook (managed by claude-rem; `claude-rem uninstall` removes it)';
 
 function installCodexNotify(opts) {
   const configPath = path.join(CODEX_DIR, 'config.toml');
@@ -408,7 +423,7 @@ function installCodexNotify(opts) {
     }
     // Never clobber a foreign notify program — TOML allows only one.
     console.log(`Codex config.toml already has a notify entry (${existing[0].trim()}).`);
-    console.log('Not overwriting it. To chain coding-brain manually, make your notify');
+    console.log('Not overwriting it. To chain claude-rem manually, make your notify');
     console.log(`program also run: bash "${hookPath}" (it ignores its argument and exits fast).`);
     return;
   }
@@ -437,7 +452,7 @@ function uninstallCodexNotify(opts) {
   if (!removed) return;
   if (opts.dryRun) { console.log(`[dry-run] would remove notify entry from ${configPath}`); return; }
   fs.writeFileSync(configPath, kept.join('\n').replace(/^\n+/, ''));
-  console.log(`Removed coding-brain notify entry from ${configPath}`);
+  console.log(`Removed claude-rem notify entry from ${configPath}`);
 }
 
 function installCodex(workspace, brain, opts) {
@@ -455,16 +470,24 @@ function uninstallCodex(workspace, opts) {
   uninstallCodexNotify(opts);
   if (opts.dryRun) { console.log('[dry-run] would remove the AGENTS.md managed block'); return; }
   const agents = path.join(workspace, 'AGENTS.md');
-  if (fs.existsSync(agents) && fs.readFileSync(agents, 'utf8').includes('coding-brain:start')) {
+  if (fs.existsSync(agents) && fs.readFileSync(agents, 'utf8').includes('claude-rem:start')) {
     spawnSync('bash', [path.join(SCRIPTS, 'agents-block.sh'), '--remove', workspace], { stdio: 'ignore' });
-    console.log(`Removed the coding-brain managed block from ${agents}`);
+    console.log(`Removed the claude-rem managed block from ${agents}`);
   }
 }
 
 // ----------------------------------------------------------- brain scaffold
 
 function scaffoldBrain(workspace) {
-  const brain = path.join(workspace, '.coding-brain');
+  const brain = path.join(workspace, '.claude-rem');
+  // Migration: this tool was published as coding-brain through 0.1.13. An
+  // existing legacy brain is the same format, so adopt it wholesale rather
+  // than compiling a fresh one next to it.
+  const legacy = path.join(workspace, '.coding-brain');
+  if (!fs.existsSync(brain) && fs.existsSync(legacy)) {
+    fs.renameSync(legacy, brain);
+    console.log(`Migrated existing brain: .coding-brain -> .claude-rem`);
+  }
   fs.mkdirSync(path.join(brain, 'sessions'), { recursive: true });
   fs.mkdirSync(path.join(brain, 'topics'), { recursive: true });
   fs.mkdirSync(path.join(brain, '.state'), { recursive: true });
@@ -501,7 +524,7 @@ Fresh brain, ready to learn from your agent sessions.
   if (!fs.existsSync(gi)) fs.writeFileSync(gi, '.state/\n');
   // Version the brain from day one; one commit per harvest afterwards.
   if (!fs.existsSync(path.join(brain, '.git'))) {
-    const git = (args) => spawnSync('git', ['-C', brain, '-c', 'user.name=coding-brain', '-c', 'user.email=coding-brain@local', ...args], { stdio: 'ignore' });
+    const git = (args) => spawnSync('git', ['-C', brain, '-c', 'user.name=claude-rem', '-c', 'user.email=claude-rem@local', ...args], { stdio: 'ignore' });
     git(['init', '-q']);
     git(['add', '-A']);
     git(['commit', '-qm', 'baseline: empty brain at init']);
@@ -609,7 +632,7 @@ function claudeOnce(prompt, model) {
       ? ['-p', prompt, '--model', 'claude-sonnet-5-high', '--force', '--output-format', 'text']
       : ['-p', prompt, '--model', model, '--setting-sources', '', '--output-format', 'json'];
     const child = spawn(eng.bin, argv,
-      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CODING_BRAIN_HARVEST: '1' } });
+      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_REM_HARVEST: '1' } });
     let out = '', err = '';
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });
@@ -736,7 +759,7 @@ async function fanoutCompile(brain, workspace, sessions, cfg) {
   const digestResults = await runPool(clusters, width, async (cluster) => {
     const corpus = cluster.map((c, i) =>
       `===== SESSION ${i + 1} (${c.sess.source}, project: ${c.sess.project}, ${new Date(c.sess.mtime).toISOString().slice(0, 10)}) =====\n${c.t}`).join('\n\n');
-    const prompt = `[coding-brain:meta]\nYou are compiling session digests for a coding workspace's memory. Below are ${cluster.length} condensed session transcripts. Write one digest per session - EXCEPT sessions sharing the same date and project, which merge into one digest.\n\nFormat and rules:\n${digestFmt}\n\nStart each digest with a line exactly like:\nFILE: YYYY-MM-DD-<2-4-word-slug>.md\n(date = that session's date from its header). Never store secrets or tokens. Do not attempt to use any tools - reply with the digests as plain text only.\n\nTRANSCRIPTS:\n\n${corpus}`;
+    const prompt = `[claude-rem:meta]\nYou are compiling session digests for a coding workspace's memory. Below are ${cluster.length} condensed session transcripts. Write one digest per session - EXCEPT sessions sharing the same date and project, which merge into one digest.\n\nFormat and rules:\n${digestFmt}\n\nStart each digest with a line exactly like:\nFILE: YYYY-MM-DD-<2-4-word-slug>.md\n(date = that session's date from its header). Never store secrets or tokens. Do not attempt to use any tools - reply with the digests as plain text only.\n\nTRANSCRIPTS:\n\n${corpus}`;
     const r = await claudeOnce(prompt, model);
     logCost('digest', r);
     done++;
@@ -756,7 +779,7 @@ async function fanoutCompile(brain, workspace, sessions, cfg) {
   if (digestBlob.length > 350000) digestBlob = digestBlob.slice(0, 350000) + '\n[capped]';
   const topicFmt = instructionsSection(brain, /^## Step 1\.5/, /^## Step 2/);
   console.log('Compiling topic notes...');
-  const tr = await claudeOnce(`[coding-brain:meta]\nBelow are all session digests for one workspace. Group them into project/topic notes - the compiled current truth per project, per the format:\n${topicFmt}\n\nStart each topic note with a line exactly like:\nFILE: <project-slug>.md\nNewest digests win when they conflict. Never store secrets. Do not attempt to use tools - plain text only.\n\nDIGESTS:\n\n${digestBlob}`, model);
+  const tr = await claudeOnce(`[claude-rem:meta]\nBelow are all session digests for one workspace. Group them into project/topic notes - the compiled current truth per project, per the format:\n${topicFmt}\n\nStart each topic note with a line exactly like:\nFILE: <project-slug>.md\nNewest digests win when they conflict. Never store secrets. Do not attempt to use tools - plain text only.\n\nDIGESTS:\n\n${digestBlob}`, model);
   logCost('topics', tr);
   let topicCount = 0;
   if (tr.ok) topicCount = writeFileBlocks(path.join(brain, 'topics'), tr.text).length;
@@ -770,7 +793,7 @@ async function fanoutCompile(brain, workspace, sessions, cfg) {
   } catch { /* none */ }
   if (topicBlob.length > 250000) topicBlob = topicBlob.slice(0, 250000) + '\n[capped]';
   console.log('Compiling STATE...');
-  const sr = await claudeOnce(`[coding-brain:meta]\nWrite the workspace STATE file - a ~100-line current-truth dashboard - from the topic notes below, per the format:\n${stateFmt}\n\nOrder Active projects newest-activity-first. Record observations with their evidence and date, never interpretive conclusions. Never store secrets. Reply with ONLY the STATE file content - no FILE: header, no tools.\n\nTOPIC NOTES:\n\n${topicBlob}\n\nDIGEST LIST: ${digestFiles.join(', ')}`, model);
+  const sr = await claudeOnce(`[claude-rem:meta]\nWrite the workspace STATE file - a ~100-line current-truth dashboard - from the topic notes below, per the format:\n${stateFmt}\n\nOrder Active projects newest-activity-first. Record observations with their evidence and date, never interpretive conclusions. Never store secrets. Reply with ONLY the STATE file content - no FILE: header, no tools.\n\nTOPIC NOTES:\n\n${topicBlob}\n\nDIGEST LIST: ${digestFiles.join(', ')}`, model);
   logCost('state', sr);
   if (sr.ok && sr.text.trim()) {
     const dst = path.join(brain, 'STATE.md');
@@ -818,7 +841,7 @@ Rules that apply to every file:
     '--setting-sources', '',
     '--allowedTools', `Read(/${workspace}/**),Write(/${brain}/**),Edit(/${brain}/**),Grep,Glob`,
     '--output-format', 'json',
-  ], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CODING_BRAIN_HARVEST: '1', BRAIN_DIR: brain }, encoding: 'utf8' });
+  ], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_REM_HARVEST: '1', BRAIN_DIR: brain }, encoding: 'utf8' });
   if (r.error) return { ok: false, err: String(r.error.message || r.error) };
   if (r.status !== 0) return { ok: false, err: `claude exited ${r.status}: ${(r.stderr || '').slice(0, 400)}` };
   return { ok: true };
@@ -838,7 +861,7 @@ async function cmdInit(args) {
   const withCursor = args.includes('--cursor');
   const withCodex = args.includes('--codex');
 
-  console.log(`coding-brain init — workspace: ${workspace}\n`);
+  console.log(`claude-rem init — workspace: ${workspace}\n`);
 
   // a. Inventory (free, no LLM)
   let sessions = inventory(workspace);
@@ -870,7 +893,7 @@ async function cmdInit(args) {
 
   // Never scaffold or compile over a mid-flight harvest: the lock check must
   // come BEFORE scaffoldBrain touches anything in an existing brain.
-  const preLock = path.join(workspace, '.coding-brain', '.state', 'harvest.lock');
+  const preLock = path.join(workspace, '.claude-rem', '.state', 'harvest.lock');
   if (fs.existsSync(preLock)) {
     let fresh = true;
     try { fresh = (Date.now() - fs.statSync(preLock).mtimeMs) < 30 * 60 * 1000; } catch { fresh = false; }
@@ -912,7 +935,7 @@ async function cmdInit(args) {
       const res = await fanoutCompile(brain, workspace, selected, cfg);
       if (res.digests > 0 && fs.existsSync(path.join(brain, 'STATE.md'))) {
         spawnSync('git', ['-C', brain, 'add', '-A'], { stdio: 'ignore' });
-        spawnSync('git', ['-C', brain, '-c', 'user.name=coding-brain', '-c', 'user.email=coding-brain@local',
+        spawnSync('git', ['-C', brain, '-c', 'user.name=claude-rem', '-c', 'user.email=claude-rem@local',
           'commit', '-qm', `init: brain compiled from ${n} sessions`], { stdio: 'ignore' });
         const costNote = res.cost > 0.005 ? ` · ~$${res.cost.toFixed(2)} of model time` : '';
         console.log(`\nBrain compiled: ${res.digests} session digest(s), ${res.topics} topic note(s) in ${Math.round(res.secs)}s${costNote}.`);
@@ -920,7 +943,7 @@ async function cmdInit(args) {
         console.log(fs.readFileSync(path.join(brain, 'STATE.md'), 'utf8'));
         console.log('=================================\n');
       } else {
-        console.log(`Starter compile failed (${res.err || 'nothing was written'}) — continuing with hooks-only install. Run \`npx coding-brain harvest\` later to retry.`);
+        console.log(`Starter compile failed (${res.err || 'nothing was written'}) — continuing with hooks-only install. Run \`npx claude-rem harvest\` later to retry.`);
       }
     }
   } else if (!compile) {
@@ -957,12 +980,12 @@ async function cmdInit(args) {
   // e. Closing line.
   console.log('\nDone. Your next session in this workspace starts already knowing this —');
   console.log('after every session it quietly updates what it knows (in the background).');
-  console.log('Check anytime: npx coding-brain status | npx coding-brain search <words> | npx coding-brain log');
+  console.log('Check anytime: npx claude-rem status | npx claude-rem search <words> | npx claude-rem log');
 
   // f. Post-install viewer — the install ends on a visual, not terminal text.
   // Detached so init can exit; killed by `uninstall`, gone on reboot, and
-  // `coding-brain ui` reopens it any time. Suppressed when non-interactive.
-  const noUi = args.includes('--no-ui') || process.env.CODING_BRAIN_NO_UI === '1'
+  // `claude-rem ui` reopens it any time. Suppressed when non-interactive.
+  const noUi = args.includes('--no-ui') || process.env.CLAUDE_REM_NO_UI === '1'
     || dryRun || !process.stdout.isTTY;
   if (!noUi) {
     try {
@@ -974,7 +997,7 @@ async function cmdInit(args) {
         child.unref();
         fs.writeFileSync(path.join(brain, '.state', 'ui.pid'), String(child.pid));
         const url = `http://127.0.0.1:${port}`;
-        console.log(`\nViewer: ${url} (\`npx coding-brain ui\` to reopen later)`);
+        console.log(`\nViewer: ${url} (\`npx claude-rem ui\` to reopen later)`);
         // Give the server a beat to bind before the browser hits it.
         setTimeout(() => openBrowser(url), 700);
       }
@@ -986,14 +1009,14 @@ async function cmdInit(args) {
 
 function cmdStatus() {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found (run `npx coding-brain init` in your workspace root)');
+  if (!brain) die('no .claude-rem found (run `npx claude-rem init` in your workspace root)');
   console.log(`Brain: ${brain}`);
   const stateDir = path.join(brain, '.state');
   let ts = 0;
   try { ts = parseInt(fs.readFileSync(path.join(stateDir, 'last_success'), 'utf8').trim(), 10) * 1000 || 0; } catch { /* none yet */ }
   console.log(`Last harvest: ${ts ? ago(Date.now() - ts) : 'never'}`);
   if (fs.existsSync(path.join(stateDir, 'last_failure'))) {
-    console.log('WARNING: last harvest FAILED — see .coding-brain/.state/harvest.log');
+    console.log('WARNING: last harvest FAILED — see .claude-rem/.state/harvest.log');
   }
   const digests = countFiles(path.join(brain, 'sessions'), '.md');
   const topics = countFiles(path.join(brain, 'topics'), '.md');
@@ -1012,8 +1035,8 @@ function cmdStatus() {
 
 function cmdSearch(args) {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found');
-  if (!args.length) die('usage: npx coding-brain search <words...>');
+  if (!brain) die('no .claude-rem found');
+  if (!args.length) die('usage: npx claude-rem search <words...>');
   const r = spawnSync('bash', [path.join(SCRIPTS, 'search.sh'), ...args],
     { stdio: 'inherit', env: { ...process.env, BRAIN_DIR: brain } });
   process.exit(r.status || 0);
@@ -1021,14 +1044,14 @@ function cmdSearch(args) {
 
 function cmdLog() {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found');
+  if (!brain) die('no .claude-rem found');
   const r = spawnSync('git', ['-C', brain, 'log', '--oneline', '-20'], { stdio: 'inherit' });
   process.exit(r.status || 0);
 }
 
 function cmdConsolidate() {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found (run `npx coding-brain init` first)');
+  if (!brain) die('no .claude-rem found (run `npx claude-rem init` first)');
   const workspace = path.dirname(brain);
   console.log('Consolidating old digests (month+project groups older than 30 days)...');
   const r = spawnSync('bash', [path.join(SCRIPTS, 'distill.sh'), '--consolidate', workspace],
@@ -1036,12 +1059,12 @@ function cmdConsolidate() {
   if (r.status === 0) {
     const g = spawnSync('git', ['-C', brain, 'log', '--oneline', '-3'], { encoding: 'utf8' });
     console.log('Done. Recent brain commits:\n' + (g.stdout || '').trim());
-  } else die('consolidation failed - see .coding-brain/.state/harvest.log');
+  } else die('consolidation failed - see .claude-rem/.state/harvest.log');
 }
 
 function cmdHarvest() {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found (run `npx coding-brain init` first)');
+  if (!brain) die('no .claude-rem found (run `npx claude-rem init` first)');
   const workspace = path.dirname(brain);
   const stateDir = path.join(brain, '.state');
   const sessions = inventory(workspace);
@@ -1096,7 +1119,7 @@ function stopUi(brain, opts) {
 
 async function cmdUi(args) {
   const brain = findBrain(process.cwd());
-  if (!brain) die('no .coding-brain found here — run `npx coding-brain init` in your workspace first, then `npx coding-brain ui`');
+  if (!brain) die('no .claude-rem found here — run `npx claude-rem init` in your workspace first, then `npx claude-rem ui`');
   const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
   const port = await findFreePort(cfg.uiPort || 4180);
   const url = port ? `http://127.0.0.1:${port}` : null;
@@ -1120,7 +1143,7 @@ async function cmdUi(args) {
 
 function runProbe(question, context, workspace, model, allowTools, brainDir, strict) {
   // Self-tag so inventory() can exclude probe transcripts from future corpora.
-  question = '[coding-brain:meta]\n' + question;
+  question = '[claude-rem:meta]\n' + question;
   const prompt = context
     ? `${context}\n\n---\n\n${question}`
     : question;
@@ -1128,7 +1151,7 @@ function runProbe(question, context, workspace, model, allowTools, brainDir, str
   if (allowTools) {
     argv.push('--allowedTools', `Read(/${workspace}/**),Grep,Glob,Bash(git *),Bash(ls *)`);
     // The blind run must not reach the brain on disk. Without this it simply
-    // greps .coding-brain/ and answers from the same notes the other side was
+    // greps .claude-rem/ and answers from the same notes the other side was
     // handed — which measures injection-vs-retrieval, not brain-vs-no-brain.
     // Caught this the first time the command ran: side A cited "the brain notes".
     // Harness v3: brain DIRS are physically hidden by the caller during both
@@ -1148,9 +1171,9 @@ function runProbe(question, context, workspace, model, allowTools, brainDir, str
   const started = Date.now();
   const r = spawnSync('claude', argv, {
     stdio: ['ignore', 'pipe', 'pipe'],
-    // CODING_BRAIN_HARVEST stops this probe's own hooks from injecting or
+    // CLAUDE_REM_HARVEST stops this probe's own hooks from injecting or
     // harvesting — otherwise the blind run isn't blind.
-    env: { ...process.env, CODING_BRAIN_HARVEST: '1' },
+    env: { ...process.env, CLAUDE_REM_HARVEST: '1' },
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
   });
@@ -1168,11 +1191,11 @@ function runProbe(question, context, workspace, model, allowTools, brainDir, str
 function cmdAb(args) {
   const flags = args.filter((a) => a.startsWith('--'));
   const question = args.filter((a) => !a.startsWith('--')).join(' ').trim();
-  if (!question) die('usage: npx coding-brain ab "<question>" [--strict] [--no-tools] [--model <m>]');
+  if (!question) die('usage: npx claude-rem ab "<question>" [--strict] [--no-tools] [--model <m>]');
 
   const bi = args.indexOf('--brain');
   const brain = bi >= 0 ? path.resolve(args[bi + 1]) : findBrain(process.cwd());
-  if (!brain || !fs.existsSync(brain)) die('no brain found (run `npx coding-brain init`, or pass --brain <path>)');
+  if (!brain || !fs.existsSync(brain)) die('no brain found (run `npx claude-rem init`, or pass --brain <path>)');
   const workspace = bi >= 0 ? process.cwd() : path.dirname(brain);
   const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
   const mi = flags.indexOf('--model');
@@ -1185,7 +1208,7 @@ function cmdAb(args) {
   const hook = spawnSync('bash', [path.join(SCRIPTS, 'recall-hook.sh')], {
     input: JSON.stringify({ session_id: 'ab-probe-' + process.pid, cwd: workspace, prompt: question }),
     encoding: 'utf8',
-    env: { ...process.env, CODING_BRAIN_DIR: brain },
+    env: { ...process.env, CLAUDE_REM_DIR: brain },
   });
   const context = (hook.stdout || '').trim();
   if (!context) die('the recall hook produced nothing — is STATE.md present?');
@@ -1239,8 +1262,8 @@ function cmdAb(args) {
 const EVAL_SEED = {
   questions: [
     { q: 'The export file is not getting generated. Where do I start looking?', kind: 'debug' },
-    { q: 'What version of coding-brain is live on npm, and is local ahead of it?', kind: 'status' },
-    { q: 'How do I publish the coding-brain npm package without it silently failing?', kind: 'procedure' },
+    { q: 'What version of claude-rem is live on npm, and is local ahead of it?', kind: 'status' },
+    { q: 'How do I publish the claude-rem npm package without it silently failing?', kind: 'procedure' },
     { q: 'Where does the app get deployed, and what breaks if I deploy the obvious way?', kind: 'procedure' },
     { q: 'What is still unfinished on the newest feature?', kind: 'status' },
     { q: 'How should I add a new page to the app?', kind: 'architecture' },
@@ -1276,7 +1299,7 @@ function restoreBrains(hidden) {
 }
 
 function judge(question, ans1, ans2, model) {
-  const prompt = `[coding-brain:meta]\nYou are grading two answers to the same question from an engineer's workspace. You do NOT have access to the workspace, so do not guess at ground truth — grade what you can actually assess.
+  const prompt = `[claude-rem:meta]\nYou are grading two answers to the same question from an engineer's workspace. You do NOT have access to the workspace, so do not guess at ground truth — grade what you can actually assess.
 
 QUESTION:
 ${question}
@@ -1296,7 +1319,7 @@ Reply with ONLY a JSON object, no prose:
 {"winner": 1 | 2 | 0, "responsive": 1 | 2 | 0, "specific": 1 | 2 | 0, "honest": 1 | 2 | 0, "why": "<one sentence>", "wrong_frame": 1 | 2 | 0}
 0 means tie. "wrong_frame" flags a response that answered a subtly different question than the one asked (0 if neither did).`;
   const r = spawnSync('claude', ['-p', prompt, '--model', model, '--setting-sources', '', '--output-format', 'json'],
-    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CODING_BRAIN_HARVEST: '1' }, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_REM_HARVEST: '1' }, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
   if (r.status !== 0) return null;
   try {
     const text = JSON.parse(r.stdout).result || '';
@@ -1309,7 +1332,7 @@ function cmdEval(args) {
   const flags = args.filter((a) => a.startsWith('--'));
   const bi = args.indexOf('--brain');
   const brain = bi >= 0 ? path.resolve(args[bi + 1]) : findBrain(process.cwd());
-  if (!brain || !fs.existsSync(brain)) die('no brain found (run `npx coding-brain init`, or pass --brain <path>)');
+  if (!brain || !fs.existsSync(brain)) die('no brain found (run `npx claude-rem init`, or pass --brain <path>)');
   const workspace = bi >= 0 ? process.cwd() : path.dirname(brain);
   const cfg = readJsonSoft(path.join(brain, 'config.json'), {});
   const model = cfg.model || 'claude-sonnet-5';
@@ -1344,7 +1367,7 @@ function cmdEval(args) {
     const hook = spawnSync('bash', [path.join(SCRIPTS, 'recall-hook.sh')], {
       input: JSON.stringify({ session_id: `eval-${stamp}-${i}`, cwd: workspace, prompt: q }),
       encoding: 'utf8',
-      env: { ...process.env, CODING_BRAIN_DIR: brain },
+      env: { ...process.env, CLAUDE_REM_DIR: brain },
     });
     const context = (hook.stdout || '').trim();
 
@@ -1402,9 +1425,9 @@ function cmdEval(args) {
 
 // -------------------------------------------------------------------- main
 
-const USAGE = `coding-brain — a compiled brain for Claude Code, Cursor & Codex
+const USAGE = `claude-rem — a compiled brain for Claude Code, Cursor & Codex
 
-Usage: npx coding-brain <command>
+Usage: npx claude-rem <command>
 
   init        Scan past transcripts, compile a starter STATE (with consent),
               and install session hooks. Flags: --yes --dry-run --hooks-only --no-hooks
@@ -1419,10 +1442,10 @@ Usage: npx coding-brain <command>
   ab <q>      Ask one question twice — blind vs with the brain — same model and
               tools on both sides, so you can see what the brain is worth.
               Flags: --strict --no-tools --model <m> --brain <path>
-  eval        Run the whole question set (.coding-brain/evals.json) A/B with a
+  eval        Run the whole question set (.claude-rem/evals.json) A/B with a
               blind judge; reports per-category results.
               Flags: --strict --brain <path> --set <file>
-  uninstall   Remove coding-brain hooks (brain dir is left untouched)
+  uninstall   Remove claude-rem hooks (brain dir is left untouched)
 `;
 
 (async () => {

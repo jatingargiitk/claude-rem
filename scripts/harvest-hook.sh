@@ -1,5 +1,5 @@
 #!/bin/bash
-# Claude Code Stop-hook adapter → coding-brain harvester.
+# Claude Code Stop-hook adapter → claude-rem harvester.
 #
 # Reads Claude Code hook JSON (session_id / transcript_path / cwd) from stdin,
 # locates the workspace brain by walking up from cwd, and — when the
@@ -10,7 +10,7 @@
 # so skipped/failed harvests keep their credit and retry on the next stop.
 
 # Never harvest a harvester's own headless session.
-if [ -n "$CODING_BRAIN_HARVEST" ]; then
+if [ -n "$CLAUDE_REM_HARVEST" ]; then
   cat > /dev/null
   exit 0
 fi
@@ -37,14 +37,14 @@ fi
 
 # Find the workspace that owns a coding brain (walk up, like git discovery).
 root="$cwd"
-while [ "$root" != "/" ] && [ ! -d "$root/.coding-brain" ]; do
+while [ "$root" != "/" ] && [ ! -d "$root/.claude-rem" ]; do
   root=$(dirname "$root")
 done
-if [ ! -d "$root/.coding-brain" ]; then
+if [ ! -d "$root/.claude-rem" ]; then
   exit 0
 fi
 
-BRAIN_DIR="$root/.coding-brain"
+BRAIN_DIR="$root/.claude-rem"
 STATE_DIR="$BRAIN_DIR/.state"
 mkdir -p "$STATE_DIR"
 

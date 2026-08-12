@@ -29,7 +29,7 @@ Usage:
 
 Writes: <brain>/.state/metrics.jsonl (one record per harvest)
         <brain>/.state/metrics_state.json (scan offsets, seen footguns)
-Brain dir = $BRAIN_DIR or <root>/.coding-brain. Python3 stdlib only.
+Brain dir = $BRAIN_DIR or <root>/.claude-rem. Python3 stdlib only.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ NOTES_PER_RECORD = 20
 
 def _brain_dir(root: Path) -> Path:
     env = os.environ.get("BRAIN_DIR")
-    return Path(env) if env else root / ".coding-brain"
+    return Path(env) if env else root / ".claude-rem"
 
 
 def _state_dir(root: Path) -> Path:

@@ -6,7 +6,7 @@
 # the model's context.
 
 # Recursion guard: a harvester's internal `claude` call must inject nothing.
-if [ -n "$CODING_BRAIN_HARVEST" ]; then
+if [ -n "$CLAUDE_REM_HARVEST" ]; then
   cat > /dev/null
   exit 0
 fi
@@ -27,16 +27,16 @@ EOF
 [ -z "$cwd" ] && cwd="$PWD"
 
 # Find the workspace brain (walk up, like git discovery).
-# CODING_BRAIN_DIR pins an explicit brain (used by `ab`/`eval` to point at a
+# CLAUDE_REM_DIR pins an explicit brain (used by `ab`/`eval` to point at a
 # different brain than the one discovery would find). Normal sessions never set it.
-if [ -n "${CODING_BRAIN_DIR:-}" ] && [ -d "${CODING_BRAIN_DIR}" ]; then
-  BRAIN_DIR="$CODING_BRAIN_DIR"
+if [ -n "${CLAUDE_REM_DIR:-}" ] && [ -d "${CLAUDE_REM_DIR}" ]; then
+  BRAIN_DIR="$CLAUDE_REM_DIR"
 else
   root="$cwd"
-  while [ "$root" != "/" ] && [ ! -d "$root/.coding-brain" ]; do
+  while [ "$root" != "/" ] && [ ! -d "$root/.claude-rem" ]; do
     root=$(dirname "$root")
   done
-  BRAIN_DIR="$root/.coding-brain"
+  BRAIN_DIR="$root/.claude-rem"
 fi
 STATE_FILE="$BRAIN_DIR/STATE.md"
 [ -d "$BRAIN_DIR" ] || exit 0
@@ -72,13 +72,13 @@ fi
 lastlearn=$(git -C "$BRAIN_DIR" log -1 --format='%s' 2>/dev/null)
 warn=""
 if [ -f "$BRAIN_DIR/.state/last_failure" ]; then
-  warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.coding-brain/.state/harvest.log)"
+  warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.claude-rem/.state/harvest.log)"
 fi
 # The receipt names what is being handed to the model, not machine telemetry.
 # "last harvest 2m ago · <commit title>" told the user about the pipeline;
 # they asked - repeatedly - to be told what context was fetched instead.
 ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
-GLOBAL_RULES="${CODING_BRAIN_GLOBAL_DIR:-$HOME/.coding-brain}/RULES.md"
+GLOBAL_RULES="${CLAUDE_REM_GLOBAL_DIR:-$HOME/.claude-rem}/RULES.md"
 GLOBAL_ACTIVE=0
 if [ -f "$GLOBAL_RULES" ] && grep -v '^[[:space:]]*#' "$GLOBAL_RULES" 2>/dev/null | grep -q '[^[:space:]]'; then
   GLOBAL_ACTIVE=1
@@ -158,7 +158,7 @@ PY
 
   cat <<'PREAMBLE'
 [CODING BRAIN] This prompt matches notes from previous sessions — LEADS, not findings. Use them to start the investigation, not to skip it; verify any status claim before repeating it; answer the question as asked, at the size asked.
-The match below is LEXICAL — a word overlap, not understanding. If the prompt's term could name something else in this workspace (another repo, tool, or project with a similar name), confirm which one the user means BEFORE building on this note. Measured failure: "diff between brain and backend" matched the coding-brain product note and answered about the wrong repo.
+The match below is LEXICAL — a word overlap, not understanding. If the prompt's term could name something else in this workspace (another repo, tool, or project with a similar name), confirm which one the user means BEFORE building on this note. Measured failure: "diff between brain and backend" matched the claude-rem product note and answered about the wrong repo.
 PREAMBLE
   echo
   topics_csv=$(echo "$matched" | sed 's/\.md$//' | paste -sd ', ' -)
@@ -214,7 +214,7 @@ fi
 # project, injected into every workspace (identity habits, style, hard nos).
 if [ "$GLOBAL_ACTIVE" -eq 1 ]; then
   echo
-  echo "=== Global rules (all workspaces — ~/.coding-brain/RULES.md) ==="
+  echo "=== Global rules (all workspaces — ~/.claude-rem/RULES.md) ==="
   grep -v '^[[:space:]]*#' "$GLOBAL_RULES"
 fi
 
