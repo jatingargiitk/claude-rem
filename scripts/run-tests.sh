@@ -469,6 +469,27 @@ CPN=$(cd "$WS" && printf '{"prompt":"common shared words here today update","con
 r=1
 [ "$CPN" = "{}" ] && r=0
 check "cursor-prompt: generic words across many topics stay silent (df filter)" $r
+
+# Ambiguity hardening: substring-only slug overlap (+2) must NOT clear the
+# threshold alone; a whole hyphen-token still does; matched injections carry
+# the lexical-guess caution.
+printf '# alpha-tool note\nspecialfact here\n' > "$BRAIN/topics/alpha-tool.md"
+CPA=$(cd "$WS" && printf '{"prompt":"where is the alp thing configured","conversation_id":"cva"}' \
+  | bash "$SCRIPTS/cursor-prompt-hook.sh")
+r=1
+[ "$CPA" = "{}" ] && r=0
+check "matcher: substring-only slug overlap stays silent" $r
+CPB=$(cd "$WS" && printf '{"prompt":"where is alpha configured for this","conversation_id":"cvb"}' \
+  | bash "$SCRIPTS/cursor-prompt-hook.sh")
+r=1
+echo "$CPB" | python3 -c "
+import json,sys
+c=json.load(sys.stdin).get('additional_context','')
+assert 'alpha-tool' in c, 'token match should fire'
+assert 'LEXICAL' in c, 'caution line missing'
+" >/dev/null 2>&1 && r=0
+check "matcher: hyphen-token match fires with lexical-guess caution" $r
+rm -f "$BRAIN/topics/alpha-tool.md"
 rm -f "$BRAIN/topics/other.md" "$BRAIN/topics/third.md"
 
 # ---------------------------------------------------- cursor-recall-hook.sh

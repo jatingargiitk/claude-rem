@@ -85,10 +85,13 @@ scored = []
 for fn, body in docs:
     slug = fn[:-3].lower()
     low = body.lower()
+    toks = set(slug.replace('_', '-').split('-'))
     score = 0
     for w in words:
-        if w in slug or slug in w:
+        if w == slug or w in toks:
             score += 5
+        elif w in slug or slug in w:
+            score += 2
         elif w in low and df.get(w, 99) <= rare_cap:
             score += 1
     if score >= 3:
@@ -108,7 +111,7 @@ if os.path.exists(os.path.join(brain, '.state', 'last_failure')):
     warn = ' · WARNING: LAST HARVEST FAILED — brain may be stale (.coding-brain/.state/harvest.log)'
 names = ', '.join(fn[:-3] for _, fn, _ in picked)
 lines = [
-    '[CODING BRAIN] This prompt matches notes from previous sessions — LEADS, not findings. Use them to start the investigation, not to skip it; verify any status claim before repeating it; answer the question as asked, at the size asked.',
+    '[CODING BRAIN] This prompt matches notes from previous sessions — LEADS, not findings. Use them to start the investigation, not to skip it; verify any status claim before repeating it; answer the question as asked, at the size asked. The match below is LEXICAL — a word overlap, not understanding. If the prompt could name something else in this workspace (a similarly-named repo or tool), confirm which one the user means before building on this note.',
     '',
     'Open THIS reply with the line below verbatim, then a blank line, then your answer. Do not print it in replies where it was not provided:',
     f'\U0001F9E0 brain → {names}{warn}',

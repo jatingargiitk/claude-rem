@@ -136,10 +136,13 @@ rare_cap = max(1, len(docs) // 3)
 scored = []
 for fn, body in docs:
     slug = fn[:-3].lower()
+    toks = set(slug.replace('_', '-').split('-'))
     score = 0
     for w in words:
-        if w in slug or slug in w:
-            score += 5
+        if w == slug or w in toks:
+            score += 5          # exact slug or whole hyphen-token
+        elif w in slug or slug in w:
+            score += 2          # substring only - weak evidence, not identity
         elif w in body and df.get(w, 99) <= rare_cap:
             score += 1
     if score >= 3:
@@ -155,6 +158,7 @@ PY
 
   cat <<'PREAMBLE'
 [CODING BRAIN] This prompt matches notes from previous sessions — LEADS, not findings. Use them to start the investigation, not to skip it; verify any status claim before repeating it; answer the question as asked, at the size asked.
+The match below is LEXICAL — a word overlap, not understanding. If the prompt's term could name something else in this workspace (another repo, tool, or project with a similar name), confirm which one the user means BEFORE building on this note. Measured failure: "diff between brain and backend" matched the coding-brain product note and answered about the wrong repo.
 PREAMBLE
   echo
   topics_csv=$(echo "$matched" | sed 's/\.md$//' | paste -sd ', ' -)
