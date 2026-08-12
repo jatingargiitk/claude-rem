@@ -87,11 +87,12 @@ project, and the briefing, built by parallel single-shot model calls with a
 cost receipt at the end:
 
 ```
-Brain compiled: 43 session digest(s), 14 topic note(s) in 434s · ~$5.35 of model time.
+Brain compiled: 43 session digest(s), 14 topic note(s) in 434s.
 ```
 
-Typical workspaces land around $2–4 and a few minutes; it's once per
-workspace, ever. From then on everything is automatic.
+A few minutes, once per workspace, ever. It runs on the Claude subscription
+you already pay for and prints its own receipt. From then on everything is
+automatic.
 
 **Key Features:**
 
@@ -238,8 +239,7 @@ The model never touches your disk during a harvest. It returns text; the
 orchestrator writes exactly three kinds of file, `sessions/*.md`,
 `topics/*.md`, `STATE.md`, atomically, under a lock every writer shares.
 One call per debounced session-end (about 40KB of new transcript before one
-fires), roughly $0.30–0.50 of subscription quota, in the background, never
-blocking your session.
+fires), in the background, never blocking your session.
 
 The brain lives at `<workspace>/.coding-brain/`:
 
@@ -282,11 +282,10 @@ npx coding-brain uninstall   # removes hooks; your brain files stay put
 ## FAQ
 
 **What does it cost?**
-Nothing beyond the Claude subscription you already pay for. The one-time
-starting compile prints its own receipt (typically $2–6 of quota). After
-that, one single-turn call per debounced session-end, ~$0.30–0.50
-equivalent. No API key, no separate billing, no background stream burning
-tokens while you work.
+Nothing beyond the Claude subscription you already pay for. No API key, no
+separate billing, no background stream burning tokens while you work. The
+one-time starting compile prints its own cost receipt so you see exactly
+what it used; after that it's one small single-turn call per session-end.
 
 **Why no cheap-model tier?**
 Because a shallow digest is worse than no digest. The brain's whole job is
