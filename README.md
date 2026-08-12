@@ -352,10 +352,6 @@ subscription (or `cursor-agent` on Cursor-only machines).
 
 More transcript readers (Gemini CLI and friends) · MCP server so non-hooked
 tools can pull from the brain · Windows.
-(Shipped: Codex CLI support · blind eval harness · cursor-agent harvest
-fallback · weekly digest consolidation · miss-escalation, where a correction
-repeated across sessions auto-promotes to a binding rule · the briefing
-dashboard.)
 
 ## Status
 
