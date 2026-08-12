@@ -47,10 +47,6 @@
 </p>
 
 <p align="center">
-  <img src="assets/demo.gif" alt="claude-rem: install, compile, query" width="760">
-</p>
-
-<p align="center">
   <img src="assets/dashboard.png" alt="the briefing dashboard" width="760">
 </p>
 
