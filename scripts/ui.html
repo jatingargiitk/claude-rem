@@ -51,6 +51,9 @@
   .brand { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em;
     white-space: nowrap; }
   .brand .glyph { margin-right: 7px; }
+  .brand .tag { margin-left: 10px; color: var(--muted); font-size: 0.78rem;
+    font-weight: 400; letter-spacing: 0; }
+  @media (max-width: 980px) { .brand .tag { display: none; } }
   .askwrap { position: relative; flex: 1; max-width: 620px; margin-left: auto; }
   .askwrap input { width: 100%; padding: 9px 40px 9px 14px; border: 1px solid var(--line);
     border-radius: 10px; background: var(--bg); font: inherit; color: inherit; }
@@ -194,7 +197,7 @@
 <body>
 <div class="shell">
   <header class="topbar">
-    <div class="brand"><span class="glyph">🧠</span>claude-rem</div>
+    <div class="brand"><span class="glyph">🧠</span>claude-rem<span class="tag">a brain that remembers everything</span></div>
     <div class="askwrap">
       <input id="q" placeholder="Ask your brain — how did we fix X · which port · why did we choose Y" autocomplete="off" />
       <button class="go" id="q-go" title="Search">→</button>
@@ -216,7 +219,7 @@
       </div>
     </div>
     <div style="min-width:200px">
-      <h3>What it tracks</h3>
+      <h3>What it remembers</h3>
       <div class="topiclist" id="topics"><span class="empty" style="padding:4px 10px;font-size:0.82rem">nothing yet</span></div>
     </div>
     <div class="receipt" id="receipt">—</div>
