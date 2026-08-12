@@ -1,3 +1,7 @@
 .testws/
 node_modules/
 .claude/
+CLAUDE.md
+LAUNCH.md
+PORT_SPEC.md
+*.tgz
