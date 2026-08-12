@@ -1,0 +1,41 @@
+site_name: coding-brain
+site_description: One brain for AI coding tools. Your agent never starts from zero again.
+site_url: https://jatingargiitk.github.io/coding-brain/
+repo_url: https://github.com/jatingargiitk/coding-brain
+repo_name: jatingargiitk/coding-brain
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - How It Works: how-it-works.md
+  - Architecture: architecture.md
+  - Configuration: configuration.md
+  - Evaluation: evaluation.md
+  - Privacy: privacy.md
+  - Troubleshooting: troubleshooting.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - pymdownx.superfences
+  - pymdownx.highlight
