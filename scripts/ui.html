@@ -6,169 +6,415 @@
 <title>coding-brain</title>
 <style>
   :root {
-    --bg: #f3efe6;
-    --bg-2: #ebe4d6;
-    --ink: #1c1914;
-    --muted: #6b6358;
-    --line: #d4cbb8;
-    --card: #faf7f0;
-    --accent: #245c8a;
-    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --bg: #f6f6f4;
+    --bg-2: #ecebe8;
+    --ink: #17181c;
+    --muted: #6e7076;
+    --line: #e2e1de;
+    --card: #ffffff;
+    --accent: #2563eb;
+    --accent-soft: #eff4ff;
+    --accent-ink: #ffffff;
+    --code-bg: #efeeec;
+    --pre-bg: #16181d;
+    --pre-ink: #e6e8ee;
+    --win: #0d8a4f;
+    --warn: #b45309;
+    --sans: -apple-system, "SF Pro Text", "Segoe UI", Inter, Roboto, sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --shadow: 0 1px 2px rgba(20,22,28,.04), 0 4px 14px rgba(20,22,28,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d0e11; --bg-2: #17181d; --ink: #e8e9ec; --muted: #9a9ca3;
+      --line: #24262c; --card: #14161a; --accent: #6d9cff; --accent-soft: #182238;
+      --accent-ink: #0f1013; --code-bg: #23252c; --pre-bg: #090a0c; --pre-ink: #d7dae1;
+      --win: #4ade80; --warn: #fbbf24;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.32);
+    }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
-  body { min-height: 100vh; }
+    font-family: var(--sans); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased; }
 
-  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 90px; }
+  /* ---------- app shell ---------- */
+  .shell { display: grid; grid-template-columns: 264px minmax(0, 1fr);
+    grid-template-rows: 58px 1fr; min-height: 100vh; }
+  @media (max-width: 920px) { .shell { grid-template-columns: minmax(0, 1fr); } }
 
-  header.top {
-    display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px;
-    margin-bottom: 16px;
-  }
-  header.top h1 {
-    font-family: var(--serif); font-weight: 700; font-size: 1.85rem;
-    margin: 0; letter-spacing: -0.02em;
-  }
-  header.top .fresh { margin-left: auto; color: var(--muted); font-size: 0.82rem;
-    font-family: var(--mono); }
-
-  .receipt {
-    font-family: var(--mono); font-size: 0.88rem; background: var(--card);
-    border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
-    margin-bottom: 26px; overflow-x: auto; white-space: nowrap;
-  }
-
-  .search { display: flex; gap: 8px; margin-bottom: 10px; }
-  .search input {
-    flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--line);
-    border-radius: 8px; background: var(--card); font: inherit;
-  }
-  .search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .search button {
-    appearance: none; border: 1px solid var(--line); background: var(--card);
-    padding: 8px 14px; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 500;
-  }
-  .search button:hover { border-color: var(--ink); }
-
-  .results { position: relative; margin-bottom: 26px; display: none; }
-  .results pre {
-    margin: 0; background: var(--card); border: 1px solid var(--line);
-    border-radius: 8px; padding: 14px 40px 14px 16px; overflow: auto;
-    white-space: pre-wrap; word-break: break-word;
-    font-family: var(--mono); font-size: 0.8rem; line-height: 1.55; max-height: 320px;
-  }
-  .results .clear {
-    position: absolute; top: 8px; right: 8px; appearance: none; border: 0;
+  /* ---------- topbar ---------- */
+  .topbar { grid-column: 1 / -1; position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: 18px; padding: 0 20px;
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em;
+    white-space: nowrap; }
+  .brand .glyph { margin-right: 7px; }
+  .askwrap { position: relative; flex: 1; max-width: 620px; margin-left: auto; }
+  .askwrap input { width: 100%; padding: 9px 40px 9px 14px; border: 1px solid var(--line);
+    border-radius: 10px; background: var(--bg); font: inherit; color: inherit; }
+  .askwrap input::placeholder { color: var(--muted); }
+  .askwrap input:focus { outline: 2px solid var(--accent); outline-offset: -1px;
+    background: var(--card); }
+  .askwrap .go { position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+    appearance: none; border: 0; background: var(--accent); color: var(--accent-ink);
+    width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
+  .askpanel { position: absolute; top: calc(100% + 8px); left: 0; right: 0; display: none;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.18); z-index: 50; }
+  .askpanel pre { margin: 0; padding: 16px 40px 16px 16px; overflow: auto;
+    white-space: pre-wrap; word-break: break-word; font-family: var(--mono);
+    font-size: 0.78rem; line-height: 1.6; max-height: 55vh; }
+  .askpanel .clear { position: absolute; top: 8px; right: 8px; appearance: none; border: 0;
     background: var(--bg-2); color: var(--muted); width: 24px; height: 24px;
-    border-radius: 999px; cursor: pointer; font-size: 0.95rem; line-height: 1;
-  }
-  .results .clear:hover { color: var(--ink); }
+    border-radius: 999px; cursor: pointer; }
+  .clock { color: var(--muted); font-size: 0.74rem; font-family: var(--mono);
+    white-space: nowrap; }
+  @media (max-width: 640px) { .clock { display: none; } }
 
-  .brief { margin-bottom: 26px; }
-  .brief > button.head {
-    all: unset; display: flex; width: 100%; align-items: baseline; gap: 10px;
-    cursor: pointer; padding: 12px 14px; background: var(--card);
-    border: 1px solid var(--line); border-radius: 8px;
-  }
-  .brief > button.head:hover { border-color: var(--ink); }
-  .brief .caret { font-family: var(--mono); color: var(--muted); font-size: 0.8rem; }
-  .brief .t { font-family: var(--serif); font-weight: 700; font-size: 1.02rem; }
-  .brief .age { margin-left: auto; color: var(--muted); font-size: 0.8rem; font-family: var(--mono); }
-  .brief .body { display: none; margin-top: 8px; }
-  .brief.open .body { display: block; }
-  .brief .body pre {
-    margin: 0; background: var(--card); border: 1px solid var(--line);
-    border-radius: 8px; padding: 16px 18px; overflow: auto; white-space: pre-wrap;
-    word-break: break-word; font-family: var(--mono); font-size: 0.82rem; line-height: 1.6;
-  }
+  /* ---------- sidebar ---------- */
+  .side { border-right: 1px solid var(--line); padding: 22px 18px;
+    display: flex; flex-direction: column; gap: 22px; background: var(--card); }
+  @media (max-width: 920px) { .side { border-right: 0; border-bottom: 1px solid var(--line);
+    flex-direction: row; flex-wrap: wrap; align-items: flex-start; } }
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 8px; text-align: center; }
+  .stat b { display: block; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+  .stat span { font-size: 0.66rem; font-family: var(--mono); color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em; }
+  .side h3 { margin: 0 0 8px; font-size: 0.7rem; font-family: var(--mono);
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .topiclist { display: flex; flex-direction: column; gap: 2px; }
+  .topiclist button { all: unset; display: flex; align-items: baseline; gap: 8px;
+    padding: 7px 10px; border-radius: 8px; cursor: pointer; font-size: 0.86rem;
+    max-width: 100%; }
+  .topiclist button:hover { background: var(--accent-soft); color: var(--accent); }
+  .topiclist .dot { color: var(--accent); font-size: 0.7rem; }
+  .topiclist .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side .receipt { margin-top: auto; font-family: var(--mono); font-size: 0.7rem;
+    color: var(--muted); line-height: 1.7; overflow-wrap: break-word; }
+  @media (max-width: 920px) { .side .receipt { margin-top: 0; flex-basis: 100%; } }
 
-  h2.stream-h {
-    font-family: var(--serif); font-size: 1.1rem; font-weight: 700; margin: 0 0 4px;
-  }
-  .stream-sub { color: var(--muted); font-size: 0.82rem; margin-bottom: 14px; }
+  /* ---------- main ---------- */
+  .main { padding: 26px 28px 90px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: var(--shadow); }
 
-  ul.feed { list-style: none; padding: 0; margin: 0; }
-  ul.feed > li { padding: 14px 2px; border-bottom: 1px solid var(--line); }
-  ul.feed > li:last-child { border-bottom: 0; }
-  .entry-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; cursor: pointer; }
-  .entry-head .subject { font-weight: 600; }
-  .entry-head .when { margin-left: auto; color: var(--muted); font-size: 0.78rem;
+  .hero { padding: 26px 30px 22px; border-top: 3px solid var(--accent); }
+  .hero .label { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 12px; }
+  .hero .headline { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.022em;
+    line-height: 1.26; margin: 0 0 10px; }
+  .hero .narrative { font-size: 1.0rem; margin: 0; max-width: 74ch; }
+  .hero code, .mini li code, .feedcard code {
+    font-family: var(--mono); font-size: 0.85em; background: var(--code-bg);
+    padding: 1.5px 6px; border-radius: 6px; }
+  .skeleton { color: var(--muted); font-size: 1rem; display: flex; align-items: center; gap: 10px; }
+  .pulse { display: inline-block; width: 9px; height: 9px; border-radius: 999px;
+    background: var(--accent); animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: .25; transform: scale(.8);} 50% { opacity: 1; transform: scale(1);} }
+
+  .trio { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px;
+    margin-top: 14px; }
+  @media (max-width: 1080px) { .trio { grid-template-columns: 1fr; } }
+  .mini { padding: 16px 20px; }
+  .mini h3 { margin: 0 0 10px; font-size: 0.72rem; font-family: var(--mono);
+    letter-spacing: 0.07em; text-transform: uppercase; font-weight: 700; color: var(--muted); }
+  .mini.wins h3 { color: var(--win); }
+  .mini.watch h3 { color: var(--warn); }
+  .mini ul { list-style: none; margin: 0; padding: 0; }
+  .mini li { padding: 7px 0; border-top: 1px solid var(--line); font-size: 0.88rem; line-height: 1.5; }
+  .mini li:first-child { border-top: 0; padding-top: 0; }
+  .mini .none { color: var(--muted); font-style: italic; font-size: 0.84rem; }
+
+  h2.sec { font-size: 1.06rem; font-weight: 750; letter-spacing: -0.01em; margin: 34px 0 4px; }
+  .sec-sub { color: var(--muted); font-size: 0.82rem; margin: 0 0 14px; }
+
+  .feedgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 14px; }
+  .feedcard { padding: 15px 18px; cursor: pointer; transition: border-color .12s; }
+  .feedcard:hover { border-color: var(--accent); }
+  .feedcard .t { font-weight: 650; font-size: 0.92rem; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .feedcard .when { color: var(--muted); font-size: 0.72rem; font-family: var(--mono);
+    margin-top: 4px; }
+  .chips { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.7rem;
+    font-weight: 600; background: var(--bg-2); color: var(--muted); font-family: var(--mono);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { color: var(--muted); padding: 22px 0; font-style: italic; }
+
+  /* ---------- note overlay ---------- */
+  .overlay { position: fixed; inset: 0; display: none; z-index: 100;
+    background: rgba(10,11,14,.5); backdrop-filter: blur(3px);
+    align-items: flex-start; justify-content: center; padding: 5vh 18px; }
+  .overlay.open { display: flex; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.35); width: min(820px, 100%);
+    max-height: 88vh; display: flex; flex-direction: column; }
+  .panel .phead { display: flex; align-items: baseline; gap: 12px; padding: 16px 22px;
+    border-bottom: 1px solid var(--line); }
+  .panel .phead .pt { font-weight: 750; }
+  .panel .phead .page { margin-left: auto; color: var(--muted); font-size: 0.74rem;
     font-family: var(--mono); white-space: nowrap; }
-  .chips { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip {
-    display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.75rem;
-    font-weight: 600; background: var(--bg-2); color: var(--muted);
-    font-family: var(--mono);
-  }
-  button.chip.digest {
-    appearance: none; border: 0; cursor: pointer; color: var(--accent);
-    background: var(--bg-2); font: inherit; font-size: 0.75rem; font-weight: 600;
-    font-family: var(--mono); padding: 2px 9px; border-radius: 999px;
-  }
-  button.chip.digest:hover { background: var(--accent); color: var(--card); }
-  .inline-digest { display: none; margin-top: 10px; }
-  li.open .inline-digest { display: block; }
-  .inline-digest pre {
-    margin: 0; background: var(--card); border: 1px solid var(--line);
-    border-radius: 8px; padding: 14px 16px; overflow: auto; white-space: pre-wrap;
-    word-break: break-word; font-family: var(--mono); font-size: 0.8rem; line-height: 1.55;
-    max-height: 60vh;
-  }
+  .panel .phead .x { appearance: none; border: 0; background: var(--bg-2);
+    color: var(--muted); width: 26px; height: 26px; border-radius: 999px; cursor: pointer; }
+  .panel .pbody { overflow: auto; padding: 4px 26px 24px; }
 
-  .empty { color: var(--muted); padding: 20px 0; font-style: italic; }
+  /* ---------- rendered markdown ---------- */
+  .md { font-size: 0.93rem; line-height: 1.68; }
+  .md > :first-child { margin-top: 14px; }
+  .md h3, .md h4, .md h5, .md h6 { letter-spacing: -0.01em; line-height: 1.3; margin: 22px 0 8px; }
+  .md h3 { font-size: 1.14rem; font-weight: 800; }
+  .md h4 { font-size: 1.0rem; font-weight: 750; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .md h5 { font-size: 0.94rem; font-weight: 700; }
+  .md h6 { font-size: 0.88rem; font-weight: 700; color: var(--muted); }
+  .md p { margin: 10px 0; }
+  .md ul, .md ol { margin: 8px 0; padding-left: 24px; }
+  .md li { margin: 6px 0; }
+  .md li::marker { color: var(--muted); }
+  .md code { font-family: var(--mono); font-size: 0.85em; background: var(--code-bg);
+    padding: 1.5px 6px; border-radius: 6px; }
+  .md pre { background: var(--pre-bg); color: var(--pre-ink); border-radius: 10px;
+    padding: 14px 16px; overflow: auto; font-family: var(--mono); font-size: 0.8rem;
+    line-height: 1.55; margin: 12px 0; }
+  .md pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .md a { color: var(--accent); text-decoration: none; }
+  .md a:hover { text-decoration: underline; }
+  .md blockquote { margin: 10px 0; padding: 2px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
+  .md hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
+  .md .wik { color: var(--accent); font-weight: 600; }
+  .md table { border-collapse: collapse; margin: 12px 0; font-size: 0.87rem; width: 100%; }
+  .md th, .md td { border: 1px solid var(--line); padding: 6px 12px; text-align: left; }
+  .md th { background: var(--bg-2); font-weight: 700; }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header class="top">
-      <h1>coding-brain</h1>
-      <div class="sub" style="color:var(--muted);font-size:0.92rem">What your agent remembers — and whether it's helping</div>
-      <div class="fresh" id="clock">—</div>
-    </header>
-
-    <div class="receipt" id="receipt">—</div>
-
-    <h2 class="stream-h" style="margin-bottom:8px">Ask your brain</h2>
-    <div class="search">
-      <input id="q" placeholder="e.g. how did we fix the login bug · which port · why did we choose X" autocomplete="off" />
-      <button id="q-go">Search</button>
-    </div>
-    <div class="results" id="results">
-      <button class="clear" id="q-clear" title="Dismiss">×</button>
-      <pre id="q-out"></pre>
-    </div>
-
-    <div class="brief" id="brief">
-      <button class="head" id="brief-head">
-        <span class="caret" id="brief-caret">▸</span>
-        <span class="t">What it knows right now</span>
-        <span class="age" id="brief-age"></span>
-      </button>
-      <div class="body">
-        <div style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);margin:6px 0 4px">STATE.md</div>
-        <pre id="brief-body">loading…</pre>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand"><span class="glyph">🧠</span>coding-brain</div>
+    <div class="askwrap">
+      <input id="q" placeholder="Ask your brain — how did we fix X · which port · why did we choose Y" autocomplete="off" />
+      <button class="go" id="q-go" title="Search">→</button>
+      <div class="askpanel" id="results">
+        <button class="clear" id="q-clear" title="Dismiss">×</button>
+        <pre id="q-out"></pre>
       </div>
     </div>
+    <div class="clock" id="clock">—</div>
+  </header>
 
-    <h2 class="stream-h">What it's learned</h2>
-    <div class="stream-sub">newest first · click any row for the full note</div>
+  <aside class="side">
+    <div>
+      <h3>Memory</h3>
+      <div class="stats">
+        <div class="stat"><b id="st-topics">–</b><span>topics</span></div>
+        <div class="stat"><b id="st-notes">–</b><span>notes</span></div>
+        <div class="stat"><b id="st-sessions">–</b><span>sessions</span></div>
+      </div>
+    </div>
+    <div style="min-width:200px">
+      <h3>What it tracks</h3>
+      <div class="topiclist" id="topics"><span class="empty" style="padding:4px 10px;font-size:0.82rem">nothing yet</span></div>
+    </div>
+    <div class="receipt" id="receipt">—</div>
+  </aside>
+
+  <main class="main">
+    <section class="hero card">
+      <div class="label">What it knows right now</div>
+      <div id="hero-body">
+        <div class="skeleton"><span class="pulse"></span> reading your memory…</div>
+      </div>
+    </section>
+
+    <div class="trio" id="trio" style="display:none">
+      <div class="card mini"><h3>Where you left off</h3><ul id="left-off"></ul></div>
+      <div class="card mini wins"><h3>Recent wins</h3><ul id="wins"></ul></div>
+      <div class="card mini watch"><h3>Heads up</h3><ul id="watch"></ul></div>
+    </div>
+
+    <h2 class="sec">What it's learned</h2>
+    <div class="sec-sub">newest first · click a card for the full note</div>
     <div id="feed"><div class="empty">Loading…</div></div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <div class="phead">
+      <span class="pt" id="p-title"></span>
+      <span class="page" id="p-age"></span>
+      <button class="x" id="p-close" title="Close">×</button>
+    </div>
+    <div class="pbody"><div class="md" id="p-body"></div></div>
   </div>
+</div>
 
 <script>
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({
   "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
 }[c]));
+const inlineMd = (s) => esc(s)
+  .replace(/`([^`]+)`/g, '<code>$1</code>')
+  .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-// ---------------------------------------------------------------- receipt
+// ------------------------------------------------ tiny markdown renderer
+function mdRender(src) {
+  src = String(src ?? "").trim();
+  const wrap = src.match(/^```[a-zA-Z]*\n([\s\S]*?)\n?```$/);
+  if (wrap) src = wrap[1];
+  const fences = [];
+  src = src.replace(/```[^\n]*\n([\s\S]*?)```/g, (_, code) => {
+    fences.push(code.replace(/\n$/, ""));
+    return " F" + (fences.length - 1) + " ";
+  });
+  src = esc(src);
+  const inline = (s) => s
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>')
+    .replace(/\[\[([^\]]+)\]\]/g, '<span class="wik">$1</span>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const lines = src.split("\n");
+  const out = [];
+  let para = [], list = null, listType = "", item = [], quote = [], table = [];
+  const flushPara = () => { if (para.length) { out.push("<p>" + inline(para.join(" ")) + "</p>"); para = []; } };
+  const flushItem = () => { if (item.length) { list.push("<li>" + inline(item.join(" ")) + "</li>"); item = []; } };
+  const flushList = () => { if (list) { flushItem(); out.push("<" + listType + ">" + list.join("") + "</" + listType + ">"); list = null; } };
+  const flushQuote = () => { if (quote.length) { out.push("<blockquote>" + inline(quote.join(" ")) + "</blockquote>"); quote = []; } };
+  const flushTable = () => {
+    if (!table.length) return;
+    const rows = table.map(r => r.replace(/^\||\|$/g, "").split("|").map(c => c.trim()));
+    table = [];
+    let html = "<table>", start = 0;
+    if (rows.length > 1 && rows[1].every(c => /^:?-{2,}:?$/.test(c) || c === "")) {
+      html += "<tr>" + rows[0].map(c => "<th>" + inline(c) + "</th>").join("") + "</tr>";
+      start = 2;
+    }
+    for (let i = start; i < rows.length; i++) {
+      if (rows[i].every(c => /^:?-{2,}:?$/.test(c) || c === "")) continue;
+      html += "<tr>" + rows[i].map(c => "<td>" + inline(c) + "</td>").join("") + "</tr>";
+    }
+    out.push(html + "</table>");
+  };
+  const flushAll = () => { flushPara(); flushList(); flushQuote(); flushTable(); };
+  for (const raw of lines) {
+    let m;
+    if ((m = raw.match(/^ F(\d+) \s*$/))) {
+      flushAll();
+      out.push("<pre><code>" + esc(fences[Number(m[1])]) + "</code></pre>");
+      continue;
+    }
+    if (/^\s*$/.test(raw)) { flushAll(); continue; }
+    if ((m = raw.match(/^(#{1,4})\s+(.*)$/))) {
+      flushAll();
+      out.push("<h" + (m[1].length + 2) + ">" + inline(m[2]) + "</h" + (m[1].length + 2) + ">");
+      continue;
+    }
+    if (/^\s*(---+|\*\*\*+)\s*$/.test(raw)) { flushAll(); out.push("<hr>"); continue; }
+    if (/^\s*\|.*\|\s*$/.test(raw)) { flushPara(); flushList(); flushQuote(); table.push(raw.trim()); continue; }
+    if ((m = raw.match(/^\s*&gt;\s?(.*)$/))) { flushPara(); flushList(); flushTable(); quote.push(m[1]); continue; }
+    if ((m = raw.match(/^\s*[-*]\s+(.*)$/))) {
+      flushPara(); flushQuote(); flushTable();
+      if (!list || listType !== "ul") { flushList(); list = []; listType = "ul"; }
+      flushItem(); item.push(m[1]); continue;
+    }
+    if ((m = raw.match(/^\s*\d+[.)]\s+(.*)$/))) {
+      flushPara(); flushQuote(); flushTable();
+      if (!list || listType !== "ol") { flushList(); list = []; listType = "ol"; }
+      flushItem(); item.push(m[1]); continue;
+    }
+    if (/^\s+\S/.test(raw) && list) { item.push(raw.trim()); continue; }
+    flushList(); flushQuote(); flushTable();
+    para.push(raw.trim());
+  }
+  flushAll();
+  return out.join("\n");
+}
+
+// ---------------------------------------------------------------- overlay
+
+function openPanel(title, age, text) {
+  $("#p-title").textContent = title;
+  $("#p-age").textContent = age || "";
+  $("#p-body").innerHTML = mdRender(text);
+  $("#overlay").classList.add("open");
+  $("#overlay .pbody").scrollTop = 0;
+}
+$("#p-close").addEventListener("click", () => $("#overlay").classList.remove("open"));
+$("#overlay").addEventListener("click", (e) => {
+  if (e.target === $("#overlay")) $("#overlay").classList.remove("open");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") $("#overlay").classList.remove("open");
+});
+
+async function openDigest(name, title) {
+  const d = await (await fetch("/api/digest/" + encodeURIComponent(name))).json();
+  openPanel(title || name, d.age, d.error ? "(" + d.error + ")" : d.text);
+}
+async function openTopic(name, title) {
+  const d = await (await fetch("/api/topic/" + encodeURIComponent(name))).json();
+  openPanel(title || name, d.age, d.error ? "(" + d.error + ")" : d.text);
+}
+
+// ------------------------------------------------------- header + sidebar
 
 async function loadReceipt() {
   const d = await (await fetch("/api/overview")).json();
   $("#clock").textContent = "updated " + d.now;
   $("#receipt").textContent = d.receipt || "—";
+  const c = d.counts || {};
+  $("#st-topics").textContent = c.topics ?? "–";
+  $("#st-notes").textContent = c.digests ?? "–";
+  $("#st-sessions").textContent = c.harvested ?? "–";
+}
+
+async function loadTopics() {
+  const d = await (await fetch("/api/topics")).json();
+  const box = $("#topics");
+  if (!d.topics || !d.topics.length) return;
+  box.innerHTML = d.topics.map(t => `
+    <button data-name="${esc(t.name)}" data-title="${esc(t.title)}">
+      <span class="dot">●</span><span class="nm">${esc(t.title || t.name.replace(/\.md$/, ""))}</span>
+    </button>`).join("");
+  box.querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => openTopic(b.dataset.name, b.dataset.title)));
+}
+
+// ----------------------------------------------------- the brain speaking
+
+function renderBrief(data, ready) {
+  if (!data) return;
+  const parts = [];
+  if (data.headline) parts.push(`<div class="headline">${inlineMd(data.headline)}</div>`);
+  if (data.narrative) parts.push(`<p class="narrative">${inlineMd(data.narrative)}</p>`);
+  if (!parts.length) parts.push(`<p class="narrative">Fresh brain — it fills in as you work.</p>`);
+  if (!ready) parts.push(`<div class="skeleton" style="margin-top:10px;font-size:0.8rem"><span class="pulse"></span> refreshing…</div>`);
+  $("#hero-body").innerHTML = parts.join("");
+  const fill = (id, items) => {
+    $(id).innerHTML = (items && items.length)
+      ? items.map(x => `<li>${inlineMd(x)}</li>`).join("")
+      : `<li class="none">nothing yet</li>`;
+  };
+  const any = ["left_off", "wins", "watch"].some(k => (data[k] || []).length);
+  $("#trio").style.display = any ? "" : "none";
+  if (any) { fill("#left-off", data.left_off); fill("#wins", data.wins); fill("#watch", data.watch); }
+}
+
+let briefTries = 0;
+async function loadBrief() {
+  let d;
+  try { d = await (await fetch("/api/briefing")).json(); } catch { d = {}; }
+  if (d.data) renderBrief(d.data, !!d.ready);
+  if (!d.ready && briefTries++ < 60) setTimeout(loadBrief, 2500);
+  else if (!d.ready && !d.data) {
+    $("#hero-body").innerHTML = `<p class="narrative">Nothing compiled yet — this fills in as you work.</p>`;
+  }
 }
 
 // ----------------------------------------------------------------- search
@@ -187,53 +433,21 @@ $("#q-clear").addEventListener("click", () => {
   $("#results").style.display = "none";
   $("#q-out").textContent = "";
 });
-
-// --------------------------------------------------- briefing (collapsed)
-
-let briefLoaded = false;
-$("#brief-head").addEventListener("click", async () => {
-  const brief = $("#brief");
-  const opening = !brief.classList.contains("open");
-  brief.classList.toggle("open", opening);
-  $("#brief-caret").textContent = opening ? "▾" : "▸";
-  if (opening && !briefLoaded) {
-    const d = await (await fetch("/api/state")).json();
-    $("#brief-body").textContent = d.text || "(empty — it fills in after your next session)";
-    $("#brief-age").textContent = d.age || "";
-    briefLoaded = true;
-  }
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".askwrap")) $("#results").style.display = "none";
 });
 
-// ------------------------------------------------- stream with accordion
+// ------------------------------------------------------------- learn feed
 
-const openDigests = new Map(); // name -> digest text (kept across refreshes)
-
-async function fetchDigest(name) {
-  if (openDigests.get(name)) return openDigests.get(name);
-  const d = await (await fetch("/api/digest/" + encodeURIComponent(name))).json();
-  const text = d.error ? "(" + d.error + ")" : d.text;
-  openDigests.set(name, text);
-  return text;
-}
-
-function entryDigest(e) {
-  const f = (e.files || []).find(f => f.startsWith("sessions/"));
-  return f ? f.slice(9) : null;
-}
-
-// Plain-language labels — no internal vocabulary on the page.
 function subjectLabel(s) {
-  if (s.startsWith("harvest: ")) return s.slice(9);
-  if (s.startsWith("init: lite STATE")) return "starter briefing" + s.slice("init: lite STATE".length);
-  if (s.startsWith("baseline:")) return "set up";
+  if (s.startsWith("harvest: ")) s = s.slice(9);
+  else if (s.startsWith("init: lite STATE") || s.startsWith("init: brain compiled")) return "starter briefing";
+  else if (s.startsWith("baseline:")) return "set up";
   return s;
 }
 
 function chipLabel(f) {
-  if (f.startsWith("sessions/")) {
-    let n = f.slice(9).replace(/\.md$/, "").replace(/^\d{4}-\d{2}-\d{2}-/, "");
-    return "note: " + n;
-  }
+  if (f.startsWith("sessions/")) return "note";
   if (f.startsWith("topics/")) return "topic: " + f.slice(7).replace(/\.md$/, "");
   if (f === "STATE.md") return "briefing updated";
   if (f === "RULES.md") return "rules updated";
@@ -241,16 +455,13 @@ function chipLabel(f) {
   return f;
 }
 
-async function toggleDigest(li, name) {
-  const already = li.classList.contains("open") && li.dataset.open === name;
-  // Collapse whatever this row is showing.
-  li.classList.remove("open");
-  delete li.dataset.open;
-  if (already) { openDigests.delete(name); return; }
-  const text = await fetchDigest(name);
-  li.querySelector(".inline-digest pre").textContent = text;
-  li.dataset.open = name;
-  li.classList.add("open");
+function entryTitle(e) {
+  let t = e.title || subjectLabel(e.subject || "");
+  if (!t || t.startsWith("```")) {
+    const f = (e.files || []).find(f => f.startsWith("sessions/"));
+    t = f ? f.slice(9).replace(/\.md$/, "").replace(/^\d{4}-\d{2}-\d{2}-/, "").replace(/-/g, " ") : "update";
+  }
+  return t;
 }
 
 async function loadStream() {
@@ -260,44 +471,33 @@ async function loadStream() {
     feed.innerHTML = `<div class="empty">${esc(d.error || "Nothing learned yet — this fills in as you work.")}</div>`;
     return;
   }
-  feed.innerHTML = `<ul class="feed">` + d.entries.map((e, i) => `
-    <li data-i="${i}">
-      <div class="entry-head">
-        <span class="subject">${esc(subjectLabel(e.subject))}</span>
-        <span class="when">${esc(e.age)}</span>
-      </div>
-      <div class="chips">${(e.files || []).map(f => f.startsWith("sessions/")
-        ? `<button class="chip digest" data-name="${esc(f.slice(9))}">${esc(chipLabel(f))}</button>`
-        : `<span class="chip">${esc(chipLabel(f))}</span>`).join("")}</div>
-      <div class="inline-digest"><pre></pre></div>
-    </li>`).join("") + `</ul>`;
-
+  feed.innerHTML = `<div class="feedgrid">` + d.entries.map((e, i) => {
+    const chips = (e.files || []).filter(f => f !== "STATE.md").map(chipLabel)
+      .filter((v, idx, a) => a.indexOf(v) === idx);
+    const shown = chips.slice(0, 4);
+    const extra = chips.length - shown.length;
+    return `
+    <div class="feedcard card" data-i="${i}">
+      <div class="t">${esc(entryTitle(e))}</div>
+      <div class="when">${esc(e.age)}</div>
+      <div class="chips">${shown.map(c => `<span class="chip">${esc(c)}</span>`).join("")}
+        ${extra > 0 ? `<span class="chip">+${extra}</span>` : ""}</div>
+    </div>`;
+  }).join("") + `</div>`;
   const entries = d.entries;
-  feed.querySelectorAll("ul.feed > li").forEach((li) => {
-    const e = entries[Number(li.dataset.i)];
-    li.querySelector(".entry-head").addEventListener("click", () => {
-      const name = entryDigest(e);
-      if (name) toggleDigest(li, name);
+  feed.querySelectorAll(".feedcard").forEach((el) => {
+    el.addEventListener("click", () => {
+      const e = entries[Number(el.dataset.i)];
+      const f = (e.files || []).find(f => f.startsWith("sessions/"));
+      if (f) openDigest(f.slice(9), entryTitle(e));
     });
-    li.querySelectorAll("button.chip.digest").forEach((btn) => {
-      btn.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        toggleDigest(li, btn.dataset.name);
-      });
-    });
-    // Re-open what the reader had open before this refresh.
-    const name = entryDigest(e);
-    if (name && openDigests.has(name)) {
-      li.querySelector(".inline-digest pre").textContent = openDigests.get(name);
-      li.dataset.open = name;
-      li.classList.add("open");
-    }
   });
 }
 
-loadReceipt();
+(async () => { await loadReceipt(); loadBrief(); })();
+loadTopics();
 loadStream();
-setInterval(() => { loadReceipt(); loadStream(); }, 15000);
+setInterval(() => { loadReceipt(); loadStream(); loadTopics(); }, 15000);
 </script>
 </body>
 </html>
