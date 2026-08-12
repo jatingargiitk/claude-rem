@@ -1,5 +1,5 @@
 site_name: claude-rem
-site_description: A brain that remembers everything. One memory for all your AI coding tools.
+site_description: Your coding agent forgets everything between sessions. claude-rem remembers: decisions, fixes, and gotchas, briefed into every new session.
 site_url: https://jatingargiitk.github.io/claude-rem/
 repo_url: https://github.com/jatingargiitk/claude-rem
 repo_name: jatingargiitk/claude-rem

@@ -4,14 +4,14 @@
     "name": "Jatin Garg"
   },
   "metadata": {
-    "description": "claude-rem: a brain that remembers everything (Claude Code, Cursor & Codex)"
+    "description": "claude-rem: session memory for AI coding agents (Claude Code, Cursor & Codex)"
   },
   "plugins": [
     {
       "name": "claude-rem",
       "version": "0.2.0",
       "source": ".",
-      "description": "A brain that remembers everything: every session compiled into a current-truth briefing, verified against git, shared across Claude Code, Cursor & Codex"
+      "description": "Session memory for AI coding agents: every session compiled into a current-truth briefing your next session starts with"
     }
   ]
 }
