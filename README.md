@@ -355,8 +355,7 @@ tools can pull from the brain · Windows.
 
 ## Status
 
-v0.2.x, formerly published as `coding-brain` (through 0.1.13); same tool,
-renamed. Young and moving fast. I've been running it daily across a
+v0.2.x. Young and moving fast. I've been running it daily across a
 40-project workspace for weeks; it's how this README knows what it's
 talking about, including the parts where it lost. Issues and war stories
 welcome.
