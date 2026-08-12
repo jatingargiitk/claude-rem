@@ -6,7 +6,7 @@
   <br>
 </h1>
 
-<h4 align="center">Persistent session memory for Claude Code, Cursor & Codex.</h4>
+<h4 align="center">A brain that remembers your decisions, fixes, and gotchas. One memory for all your AI coding tools.</h4>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/claude-rem">
