@@ -1277,8 +1277,8 @@ function cmdAb(args) {
 const EVAL_SEED = {
   questions: [
     { q: 'The export file is not getting generated. Where do I start looking?', kind: 'debug' },
-    { q: 'What version of claude-rem is live on npm, and is local ahead of it?', kind: 'status' },
-    { q: 'How do I publish the claude-rem npm package without it silently failing?', kind: 'procedure' },
+    { q: 'What version of this package is live, and is local ahead of it?', kind: 'status' },
+    { q: 'How do I release this project without the publish silently failing?', kind: 'procedure' },
     { q: 'Where does the app get deployed, and what breaks if I deploy the obvious way?', kind: 'procedure' },
     { q: 'What is still unfinished on the newest feature?', kind: 'status' },
     { q: 'How should I add a new page to the app?', kind: 'architecture' },
