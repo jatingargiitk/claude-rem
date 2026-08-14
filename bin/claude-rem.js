@@ -873,6 +873,7 @@ async function cmdInit(args) {
   // on herdr's own agent events). Scaffolds the brain without touching the user's
   // editor config, so the host stays the single trigger.
   const noHooks = args.includes('--no-hooks');
+  const noClaudeHooks = args.includes('--no-claude-hooks');
   const withCursor = args.includes('--cursor');
   const withCodex = args.includes('--codex');
 
@@ -986,7 +987,12 @@ async function cmdInit(args) {
   if (noHooks) {
     console.log('Skipped hook install (--no-hooks) — whatever installed this drives the saving.');
   } else {
-  installClaudeHooks({ dryRun });
+  // --no-claude-hooks: the Claude Code side is already covered (typically by
+  // the marketplace plugin, which carries its own hook copies) — install only
+  // the other tools' wiring, so plugin users can add Cursor/Codex without
+  // ending up with duplicate Claude Code hooks.
+  if (noClaudeHooks) console.log('Skipped Claude Code hooks (--no-claude-hooks — the plugin manages them).');
+  else installClaudeHooks({ dryRun });
   if (fs.existsSync(CURSOR_DIR)) {
     let doCursor = withCursor;
     if (!doCursor && !yes) {
@@ -1461,6 +1467,7 @@ Usage: npx claude-rem <command>
 
   init        Scan past transcripts, compile a starter STATE (with consent),
               and install session hooks. Flags: --yes --dry-run --hooks-only --no-hooks
+              --no-claude-hooks (plugin users: add Cursor/Codex without duplicate hooks)
               --cursor --codex --no-ui
   ui          Open the local viewer (Stream/State/Digests/Metrics) in your
               browser. Foreground; Ctrl-C stops it. Flag: --no-open

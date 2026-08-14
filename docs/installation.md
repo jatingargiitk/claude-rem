@@ -28,6 +28,7 @@ npx claude-rem init
 | `--dry-run` | inventory only: show what would be compiled, change nothing |
 | `--hooks-only` | install hooks, skip the starting compile |
 | `--no-hooks` | scaffold the brain only, touch no editor config |
+| `--no-claude-hooks` | skip only the Claude Code hooks (for plugin users adding Cursor/Codex) |
 | `--cursor` | also install Cursor hooks |
 | `--codex` | also install Codex support (`AGENTS.md` block + `notify` hook) |
 | `--no-ui` | don't open the viewer at the end |
@@ -37,6 +38,14 @@ npx claude-rem init
 ```
 /plugin marketplace add jatingargiitk/claude-rem
 /plugin install claude-rem
+```
+
+The plugin covers **Claude Code only** (Cursor can't load Claude Code
+plugins). To add Cursor or Codex on top of a plugin install, without
+duplicating the Claude Code hooks the plugin already provides:
+
+```bash
+npx claude-rem@latest init --cursor --codex --no-claude-hooks
 ```
 
 ## Requirements

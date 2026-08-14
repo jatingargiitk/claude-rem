@@ -733,6 +733,15 @@ r=1
 ! grep -q 'cursor-harvest-hook.sh' "$WS/.cursor/hooks.json" 2>/dev/null && r=0
 check "uninstall: cursor hook entries removed too" $r
 
+# Plugin users add Cursor without duplicating Claude Code hooks: settings
+# stays exactly as-is (here: post-uninstall, no hook entries), cursor written.
+SETTINGS_SNAP=$(cat "$FAKE_SETTINGS3")
+run_cli "$FAKE_SETTINGS3" init --yes --hooks-only --cursor --no-claude-hooks >/dev/null
+r=1
+[ "$(cat "$FAKE_SETTINGS3")" = "$SETTINGS_SNAP" ] \
+  && grep -q 'cursor-recall-hook.sh' "$WS/.cursor/hooks.json" && r=0
+check "init --cursor --no-claude-hooks: cursor wired, settings untouched" $r
+
 # ------------------------------------------------------------- CLI misc
 
 ST=$(run_cli "$FAKE_SETTINGS3" status)
