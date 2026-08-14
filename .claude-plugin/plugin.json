@@ -17,6 +17,5 @@
     "brain",
     "context",
     "compiled-memory"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }
