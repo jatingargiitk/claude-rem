@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "claude-rem",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "source": ".",
       "description": "Session memory for AI coding agents: every session compiled into a current-truth briefing your next session starts with"
     }
