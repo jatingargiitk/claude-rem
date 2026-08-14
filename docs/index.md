@@ -1,6 +1,6 @@
 # 🧠 claude-rem
 
-**A brain that remembers your decisions, fixes, and gotchas. One memory for all your AI coding tools.**
+**A brain that remembers everything. One memory for all your AI coding tools.**
 
 claude-rem reads each session after it ends, distills what mattered into a
 small briefing of your workspace, verifies it against your actual repos, and
