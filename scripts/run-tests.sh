@@ -699,7 +699,7 @@ check "init: inventory finds claude + cursor + codex sessions for this workspace
 # A fresh harvest lock must make init refuse before touching anything.
 mkdir -p "$BRAIN/.state/harvest.lock"
 STATE_BEFORE=$(cat "$BRAIN/STATE.md")
-LOCKED_OUT=$(run_cli "$FAKE_SETTINGS3" init --yes 2>&1)
+LOCKED_OUT=$(CLAUDE_REM_INIT_LOCK_WAIT=0 run_cli "$FAKE_SETTINGS3" init --yes 2>&1)
 r=1
 echo "$LOCKED_OUT" | grep -q "harvest is in progress" \
   && [ "$(cat "$BRAIN/STATE.md")" = "$STATE_BEFORE" ] && r=0

@@ -907,12 +907,27 @@ async function cmdInit(args) {
   }
 
   // Never scaffold or compile over a mid-flight harvest: the lock check must
-  // come BEFORE scaffoldBrain touches anything in an existing brain.
+  // come BEFORE scaffoldBrain touches anything in an existing brain. A live
+  // harvest is usually seconds from done (common when init runs from inside a
+  // hooked session, whose own Stop-hook harvests race it), so wait it out for
+  // a bounded window before refusing.
   const preLock = path.join(workspace, '.claude-rem', '.state', 'harvest.lock');
-  if (fs.existsSync(preLock)) {
-    let fresh = true;
-    try { fresh = (Date.now() - fs.statSync(preLock).mtimeMs) < 30 * 60 * 1000; } catch { fresh = false; }
-    if (fresh) die('a harvest is in progress on this brain (found .state/harvest.lock) - retry in a minute');
+  const lockIsFresh = () => {
+    if (!fs.existsSync(preLock)) return false;
+    try { return (Date.now() - fs.statSync(preLock).mtimeMs) < 30 * 60 * 1000; } catch { return false; }
+  };
+  if (lockIsFresh()) {
+    const waitSecs = Number(process.env.CLAUDE_REM_INIT_LOCK_WAIT ?? 180);
+    if (waitSecs > 0) {
+      process.stdout.write(`A harvest is running on this brain - waiting for it (up to ${waitSecs}s) `);
+      const deadline = Date.now() + waitSecs * 1000;
+      while (lockIsFresh() && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 5000));
+        process.stdout.write('.');
+      }
+      console.log('');
+    }
+    if (lockIsFresh()) die('a harvest is in progress on this brain (found .state/harvest.lock) - retry in a minute');
   }
   // Brain scaffold (needed for hooks either way).
   const brain = scaffoldBrain(workspace);
