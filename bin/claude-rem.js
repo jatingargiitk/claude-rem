@@ -787,17 +787,42 @@ async function fanoutCompile(brain, workspace, sessions, cfg) {
   }
   if (!digestCount) return { digests: 0, topics: 0, cost: spent, secs: (Date.now() - t0) / 1000, err: 'no digests produced' };
 
-  // Topics: one call over all digests (they are compact). The model groups by
-  // project itself - transcript cwd is a bad proxy for project in practice.
+  // Topics: chunked over the digests. A single call over everything fails
+  // silently at scale (a real 46-digest / 140KB workspace produced ZERO topic
+  // notes: the response outgrew one turn or dropped its FILE: markers, and
+  // the error was discarded). One call per <=60KB chunk, oldest chunk first
+  // so a later rewrite of the same topic wins, one retry per chunk, and no
+  // failure is ever silent.
   const digestFiles = fs.readdirSync(path.join(brain, 'sessions')).filter((f) => f.endsWith('.md'));
-  let digestBlob = digestFiles.map((f) => `----- ${f} -----\n` + fs.readFileSync(path.join(brain, 'sessions', f), 'utf8')).join('\n');
-  if (digestBlob.length > 350000) digestBlob = digestBlob.slice(0, 350000) + '\n[capped]';
   const topicFmt = instructionsSection(brain, /^## Step 1\.5/, /^## Step 2/);
   console.log('Compiling topic notes...');
-  const tr = await claudeOnce(`[claude-rem:meta]\nBelow are all session digests for one workspace. Group them into project/topic notes - the compiled current truth per project, per the format:\n${topicFmt}\n\nStart each topic note with a line exactly like:\nFILE: <project-slug>.md\nNewest digests win when they conflict. Never store secrets. Do not attempt to use tools - plain text only.\n\nDIGESTS:\n\n${digestBlob}`, model);
-  logCost('topics', tr);
+  const parts = digestFiles.map((f) => `----- ${f} -----\n` + fs.readFileSync(path.join(brain, 'sessions', f), 'utf8'));
+  const chunks = [];
+  let curChunk = '';
+  for (const p of parts) {
+    if (curChunk && (curChunk.length + p.length) > 60000) { chunks.push(curChunk); curChunk = ''; }
+    curChunk += (curChunk ? '\n' : '') + p;
+  }
+  if (curChunk) chunks.push(curChunk);
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const tprompt = `[claude-rem:meta]\nBelow are session digests for one workspace${chunks.length > 1 ? ` (part ${ci + 1} of ${chunks.length})` : ''}. Group them into project/topic notes - the compiled current truth per project, per the format:\n${topicFmt}\n\nStart each topic note with a line exactly like:\nFILE: <project-slug>.md\nNewest digests win when they conflict. Never store secrets. Do not attempt to use tools - plain text only.\n\nDIGESTS:\n\n${chunks[ci]}`;
+    let tr = await claudeOnce(tprompt, model);
+    logCost('topics', tr);
+    if (!tr.ok || !/^FILE: /m.test(tr.text)) {
+      console.log(`  topic call ${ci + 1}/${chunks.length} failed (${(tr.err || 'no FILE: blocks').slice(0, 120)}) - retrying once...`);
+      tr = await claudeOnce(tprompt, model);
+      logCost('topics', tr);
+    }
+    if (tr.ok && /^FILE: /m.test(tr.text)) {
+      const wrote = writeFileBlocks(path.join(brain, 'topics'), tr.text).length;
+      process.stdout.write(`  topic call ${ci + 1}/${chunks.length}: ${wrote} note(s)\n`);
+    } else {
+      console.log(`  WARN: topic call ${ci + 1}/${chunks.length} failed twice; continuing`);
+    }
+  }
   let topicCount = 0;
-  if (tr.ok) topicCount = writeFileBlocks(path.join(brain, 'topics'), tr.text).length;
+  try { topicCount = fs.readdirSync(path.join(brain, 'topics')).filter((f) => f.endsWith('.md')).length; } catch { /* none */ }
+  if (!topicCount) console.log('  WARN: no topic notes were produced - per-prompt recall will be weak until harvests fill them in.');
 
   // STATE last, from topics + digest titles, observations-not-conclusions.
   const stateFmt = instructionsSection(brain, /^## Step 3/, /^## Step 4/);
