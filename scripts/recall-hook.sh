@@ -38,18 +38,23 @@ else
   done
   BRAIN_DIR="$root/.claude-rem"
 fi
+# No brain anywhere up the tree = a genuinely fresh machine (the common
+# plugin-install case). The brain's future home is the session's cwd; do NOT
+# create anything — init does that only after the user consents.
+[ -d "$BRAIN_DIR" ] || BRAIN_DIR="$cwd/.claude-rem"
 STATE_FILE="$BRAIN_DIR/STATE.md"
-[ -d "$BRAIN_DIR" ] || exit 0
 
-# Empty brain + past transcripts on disk = a plugin-style install that never
+# No compiled memory yet + past transcripts on disk = an install that never
 # got init's backfill. Offer it through the agent, once per session — the
 # compile spends real subscription quota, so it needs the user's yes.
 if [ ! -f "$STATE_FILE" ]; then
   CDIR="${CLAUDE_REM_CLAUDE_DIR:-$HOME/.claude}"
   if [ -d "$CDIR/projects" ] && ls "$CDIR/projects"/*/*.jsonl >/dev/null 2>&1; then
-    marker="$BRAIN_DIR/.state/offered_backfill_${session_id:-x}"
+    # Marker lives in tmp, not the workspace: the workspace stays untouched
+    # until the user says yes.
+    marker="${TMPDIR:-/tmp}/claude-rem-offered-${session_id:-x}"
     if [ ! -f "$marker" ]; then
-      mkdir -p "$BRAIN_DIR/.state" 2>/dev/null && : > "$marker" 2>/dev/null
+      : > "$marker" 2>/dev/null
       cat <<'NUDGE'
 [claude-rem] This workspace has no compiled memory yet, but past coding
 sessions exist on this machine. Tell the user, in one short line, that
