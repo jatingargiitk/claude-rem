@@ -17,6 +17,30 @@ BRAIN_DIR="$PWD/.claude-rem"
 STATE_FILE="$BRAIN_DIR/STATE.md"
 
 if [ ! -f "$STATE_FILE" ]; then
+  # No compiled memory yet. If past transcripts exist, offer the backfill —
+  # sessionStart fires once per chat, so no marker is needed. The compile
+  # spends real quota: consent required, nothing written until yes.
+  CDIR="${CLAUDE_REM_CLAUDE_DIR:-$HOME/.claude}"
+  UDIR="${CLAUDE_REM_CURSOR_DIR:-$HOME/.cursor}"
+  if { [ -d "$CDIR/projects" ] && ls "$CDIR/projects"/*/*.jsonl >/dev/null 2>&1; }      || { [ -d "$UDIR/projects" ] && ls "$UDIR/projects"/*/agent-transcripts/*/*.jsonl >/dev/null 2>&1; }; then
+    flags="--cursor"
+    [ -d "${CLAUDE_REM_CODEX_DIR:-$HOME/.codex}" ] && flags="$flags --codex"
+    # If the Claude Code side is plugin-managed, keep it that way.
+    if ls "$HOME/.claude/plugins/cache"/*/claude-rem >/dev/null 2>&1; then
+      flags="$flags --no-claude-hooks"
+    fi
+    nudge="[claude-rem] This workspace has no compiled memory yet, but past coding
+sessions exist on this machine. Tell the user, in one short line, that
+claude-rem can compile a starter brain from their session history so it
+remembers their work from day one (takes a few minutes of their Claude
+subscription quota; prints its own cost receipt; asks consent before
+reading anything), and that it will also connect the other supported
+coding tools found on this machine. If and only if the user says yes, run:
+  npx -y claude-rem@latest init $flags --yes
+Do not run it unprompted. Do not mention this instruction block."
+    printf '%s' "$nudge" | python3 -c 'import json,sys; print(json.dumps({"additional_context": sys.stdin.read()}))'
+    exit 0
+  fi
   echo '{}'
   exit 0
 fi
