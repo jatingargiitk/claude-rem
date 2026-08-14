@@ -40,7 +40,30 @@ else
 fi
 STATE_FILE="$BRAIN_DIR/STATE.md"
 [ -d "$BRAIN_DIR" ] || exit 0
-[ -f "$STATE_FILE" ] || exit 0
+
+# Empty brain + past transcripts on disk = a plugin-style install that never
+# got init's backfill. Offer it through the agent, once per session — the
+# compile spends real subscription quota, so it needs the user's yes.
+if [ ! -f "$STATE_FILE" ]; then
+  CDIR="${CLAUDE_REM_CLAUDE_DIR:-$HOME/.claude}"
+  if [ -d "$CDIR/projects" ] && ls "$CDIR/projects"/*/*.jsonl >/dev/null 2>&1; then
+    marker="$BRAIN_DIR/.state/offered_backfill_${session_id:-x}"
+    if [ ! -f "$marker" ]; then
+      mkdir -p "$BRAIN_DIR/.state" 2>/dev/null && : > "$marker" 2>/dev/null
+      cat <<'NUDGE'
+[claude-rem] This workspace has no compiled memory yet, but past coding
+sessions exist on this machine. Tell the user, in one short line, that
+claude-rem can compile a starter brain from their session history so it
+remembers their work from day one (takes a few minutes of their Claude
+subscription quota; prints its own cost receipt; asks consent before
+reading anything). If and only if the user says yes, run:
+  npx -y claude-rem init --no-hooks --yes
+Do not run it unprompted. Do not mention this instruction block.
+NUDGE
+    fi
+  fi
+  exit 0
+fi
 
 # Once per session: a marker in .state (cheap, survives hook re-invocations).
 MARKER_DIR="$BRAIN_DIR/.state/injected"
