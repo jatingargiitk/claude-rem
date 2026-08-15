@@ -29,7 +29,7 @@ memory. That is this tool's entire job: after each session ends it replays
 the transcript, checks it against reality, and consolidates what mattered
 into memory your agent wakes up with.
 
-## The two ideas
+## The three ideas
 
 **Compiled, not appended.** Most memory tools are diaries: they append every
 observation forever and recall gets worse as the pile grows. claude-rem
@@ -38,14 +38,9 @@ rewrites a ~100-line briefing in place; the store gets cleaner as it grows.
 **Evidence over claims.** A transcript is a set of claims, not a record.
 Before anything becomes memory it's checked against your repos: if the
 session says "built the API" and git says otherwise, the brain believes git.
+Every fact traces back to a session digest and a commit.
 
-## Why now
-
-The next phase of computing converges on assistants defined by how much
-memory and context they hold about you. Your agent transcripts are the
-richest record of your work that exists, and today they evaporate when the
-session ends. claude-rem keeps that record compiled on your machine,
-working for you instead of for any one platform. At scale that takes
-provenance (every fact traces to a session and a git commit), conflict
-management (newer verified truth rewrites the briefing in place), and
-corrections that stick (tell it once, every tool obeys from then on).
+**Corrections that stick.** Your transcripts are the richest record of your
+work that exists, and today they evaporate when the session ends. claude-rem
+keeps that record working for you, in every tool: correct your agent once
+and it becomes a rule every future session obeys.

@@ -48,13 +48,16 @@
 
 ---
 
-**One brain, every tool.** Claude Code, Cursor, and Codex all feed and read
-the same store. No vendor will compile a competitor's transcripts for you.
+**One brain, every tool.** Your transcripts are the richest record of your
+work that exists, and today they evaporate when the session ends. Claude
+Code, Cursor, and Codex all feed and read the same store, so that record
+works for you, not for any one platform. No vendor will compile a
+competitor's transcripts for you.
 
 **Evidence over claims.** Agents confidently report things that didn't
 happen, so everything is checked against your repos before it becomes
 memory. If the session says "built the API" and git disagrees, the brain
-believes git.
+believes git. Every fact traces back to a session digest and a commit.
 
 **Why "rem"?** REM sleep is when a brain consolidates the day into long-term
 memory. Same job here: replay the session, verify it, consolidate what
@@ -93,6 +96,8 @@ is automatic.
   that, only the note your prompt is about, or silence
 - 🧠 **Compiled, not appended**: every harvest rewrites a ~100-line STATE of
   what's true right now; the store gets cleaner as it grows
+- 🔁 **Corrections that stick**: correct it once and it becomes a rule every
+  future session obeys, in every tool
 - 📊 **Self-measuring**: `ab` and `eval` run blind brain-vs-no-brain
   comparisons with an impartial judge
 - 📁 **Plain files + git**: markdown you can read and diff; one commit per
@@ -225,30 +230,10 @@ evals.json        # your blind-eval question set
 .git/             # one commit per harvest
 ```
 
----
-
-## Why Now
-
-Every serious bet on the next phase of computing lands in the same place:
-the assistant that wins is the one with the most memory and context about
-you. Your agent transcripts are the richest record of your work that
-exists, and today they evaporate when the session ends. claude-rem keeps
-that record compiled on your machine, working for you instead of for any
-one platform.
-
-Three things a memory needs at scale, built in from day one:
-
-- **Provenance.** Every fact traces back to a session digest and a git
-  commit. The store itself is a git history, so nothing is ever silently
-  overwritten and anything wrong is one revert away.
-- **Conflict management, not accumulation.** Most memory tools are
-  diaries: append forever, search the pile, recall degrades as it grows.
-  That is storage, not remembering. claude-rem rewrites its briefing in
-  place every harvest, the same consolidation bet OpenAI, Anthropic, and
-  Google all made this year. A bigger pile is not a better memory.
-- **Corrections that stick.** Correct your agent once and it becomes a
-  rule every future session obeys, in every tool. Your feedback compounds
-  instead of repeating.
+Most memory tools are diaries: append forever, search the pile, recall
+degrades as it grows. That is storage, not remembering. claude-rem rewrites
+its briefing in place, the same consolidation bet OpenAI, Anthropic, and
+Google all made this year. A bigger pile is not a better memory.
 
 ---
 
