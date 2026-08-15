@@ -123,49 +123,31 @@
   .heromix { display: flex; flex-direction: column; gap: 14px; }
   .brainviz { position: relative; width: 100%; max-width: 660px; margin: 0 auto; }
   .brainviz svg { width: 100%; height: 100%; display: block; overflow: visible; }
-  .bv-edge { fill: none; stroke: var(--line-2); stroke-width: 1; }
-  .bv-edge.flow { stroke-dasharray: 3 7; animation: synapse 3.2s linear infinite; }
-  @keyframes synapse { to { stroke-dashoffset: -40; } }
-  .bv-core { fill: var(--ink); }
+  .bv-orbit { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 1 7;
+    stroke-linecap: round; }
+  .bv-mesh { fill: none; stroke: var(--line); stroke-width: 1; opacity: .7; }
+  .bv-edge { fill: none; stroke: var(--line-2); stroke-width: 1; opacity: .75; }
+  .bv-pulse { fill: var(--accent); opacity: .85; }
+  .bv-pulse.warn { fill: var(--warn); }
   .bv-corering { fill: none; stroke: var(--line-2); stroke-width: 1;
     animation: corepulse 3.4s ease-in-out infinite; transform-origin: center; }
   @keyframes corepulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
   .bv-node { cursor: pointer; }
-  .bv-node circle.body { fill: var(--card); stroke: var(--accent); stroke-width: 1.4;
+  .bv-node circle.body { fill: var(--card); stroke: var(--accent); stroke-width: 1.6;
     transition: all .15s; }
+  .bv-node circle.nucleus { fill: var(--accent); opacity: .85; transition: all .15s; }
   .bv-node.warn circle.body { stroke: var(--warn); }
-  .bv-node:hover circle.body { fill: var(--accent-soft); stroke-width: 2.2; }
+  .bv-node.warn circle.nucleus { fill: var(--warn); }
+  .bv-node:hover circle.body { fill: var(--accent-soft); stroke-width: 2.4; }
   .bv-node text { font-family: var(--mono); font-size: 11.5px; fill: var(--muted); }
   .bv-node:hover text { fill: var(--accent); }
-  .bv-sat { fill: var(--accent); opacity: .45; }
-  .bv-node.sel circle.body { stroke-width: 2.4; fill: var(--accent-soft); }
-  .bv-node.sel text { fill: var(--accent); font-weight: 600; }
+  .bv-sat { fill: var(--accent); opacity: .4; }
 
-  /* ---------- the readout below the map ---------- */
+  /* ---------- under the map ---------- */
   #readout { margin-top: 2px; }
-  .ro-label { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--accent); font-weight: 600;
-    margin: 8px 0 10px; display: flex; align-items: baseline; gap: 12px; }
-  .ro-slug { color: var(--ink); }
-  .ro-back { margin-left: auto; color: var(--muted); cursor: pointer;
-    text-decoration: none; letter-spacing: 0.08em; }
-  .ro-back:hover { color: var(--accent); }
-  .ro-now { font-size: 1rem; line-height: 1.65; margin: 0 0 4px; max-width: 74ch;
-    color: color-mix(in srgb, var(--ink) 88%, var(--muted)); }
-  .ro-sub { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--muted); margin: 16px 0 7px; }
-  .ro-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column;
-    gap: 7px; font-size: 0.93rem; line-height: 1.55; max-width: 78ch; }
-  .ro-list li::marker { color: var(--accent); }
-  .ro-list.warn li::marker { color: var(--warn); }
-  .ro-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .ro-chip { font-family: var(--mono); font-size: 0.72rem; border: 1px solid var(--line);
-    background: var(--card); border-radius: 999px; padding: 4px 12px; cursor: pointer;
-    color: var(--ink); }
-  .ro-chip:hover { border-color: var(--accent); color: var(--accent); }
-  .ro-full { display: inline-block; margin-top: 14px; font-family: var(--mono);
-    font-size: 0.74rem; color: var(--accent); text-decoration: none; }
   .ro-hint { margin-top: 4px; font-size: 0.85rem; color: var(--muted); text-align: center; }
+  .pnow { font-size: 0.97rem; line-height: 1.68; margin: 6px 0 4px;
+    color: color-mix(in srgb, var(--ink) 88%, var(--muted)); }
   .rlist { margin: 14px 0 0; padding-left: 20px; display: flex; flex-direction: column;
     gap: 12px; font-size: 0.95rem; line-height: 1.65; }
   .rlist li::marker { color: var(--accent); }
@@ -564,9 +546,12 @@ async function showNote(name) {
 async function showProject(slug) {
   const d = await (await fetch("/api/project/" + encodeURIComponent(slug))).json();
   if (d.error) { panelShow(slug, "", '<p class="empty">' + esc(d.error) + "</p>"); return; }
-  await ensureTopics();
+  await ensureTopics(); await ensureState();
   const meta = SLUGS.find(s => s.slug === slug);
   let html = "";
+  const mem = memFor(slug);
+  if (mem) html += '<div class="psec">What it remembers</div><p class="pnow">' +
+    inlineMd(mem.text.replace(/^\*\*.+?\*\*(\s*\([^)]*\))?:?\s*/, "")) + "</p>";
   if (d.threads && d.threads.length) {
     html += '<div class="psec">Open threads</div><ul class="pthreads">' +
       d.threads.map(th => "<li>" + inlineMd(th) + "</li>").join("") + "</ul>";
@@ -744,7 +729,7 @@ function renderBrief(data, ready) {
   }
 }
 // ------------------------------------------- the readout below the map
-let SEL = null, STATE_MEM = null;
+let STATE_MEM = null;
 async function ensureState() {
   if (STATE_MEM) return STATE_MEM;
   let text = "";
@@ -774,100 +759,90 @@ function memFor(slug) {
     return toks.filter(w => pt.includes(w)).length >= 2;
   }) || null;
 }
-function renderReadout(slug) {
-  const el = $("#readout");
-  if (!el) return;
-  const mem = STATE_MEM || { projects: [], conventions: [], threads: [] };
-  if (!slug) {
-    el.innerHTML = SLUGS.length
-      ? '<div class="ro-hint">Click a project — see exactly what it remembers.</div>' : "";
-    return;
-  }
-  const low = slug.toLowerCase();
-  const p = memFor(slug);
-  const toks = low.split("-").filter(w => w.length >= 4);
-  const threads = mem.threads.filter(t => {
-    const tl = t.toLowerCase();
-    return tl.includes(low) || toks.some(w => tl.includes(w));
-  });
-  const ses = NOTES.filter(n => ((n.title || "") + " " + n.name).toLowerCase().split(/\s+/)
-    .some(w => toks.includes(w) || w.includes(low))).slice(0, 3);
-  let h = '<div class="ro-label"><span class="ro-slug">' + esc(slug) + '</span> · what it remembers' +
-    '<a class="ro-back" id="ro-back">← workspace</a></div>';
-  if (p) h += '<p class="ro-now">' + inlineMd(p.text.replace(/^\*\*.+?\*\*(\s*\([^)]*\))?:?\s*/, "")) + "</p>";
-  else h += '<p class="ro-now" style="color:var(--muted)">Not in the current briefing — open the full note for its history.</p>';
-  if (threads.length) h += '<div class="ro-sub">Loose ends it’s tracking</div><ul class="ro-list warn">' +
-    threads.slice(0, 4).map(t => "<li>" + inlineMd(t) + "</li>").join("") + "</ul>";
-  if (ses.length) h += '<div class="ro-sub">From these sessions</div><div class="ro-chips">' +
-    ses.map(n => '<button class="ro-chip" data-note="' + esc(n.name) + '">' + esc(n.title || n.name) + "</button>").join("") + "</div>";
-  h += '<a class="ro-full" href="#project/' + encodeURIComponent(slug) + '">Open the full note →</a>';
-  el.innerHTML = h;
-  const back = $("#ro-back");
-  if (back) back.addEventListener("click", () => selectNode(null));
-  el.querySelectorAll(".ro-chip").forEach(b =>
-    b.addEventListener("click", () => nav("note/" + encodeURIComponent(b.dataset.note))));
-}
-function selectNode(slug) {
-  SEL = (slug && SEL !== slug) ? slug : null;
-  document.querySelectorAll(".bv-node").forEach(n => n.classList.toggle("sel", n.dataset.slug === SEL));
-  renderReadout(SEL);
-}
-
 function buildBrain() {
   const el = $("#brainviz");
   if (!el || !SLUGS.length) { if (el) el.innerHTML = ""; return; }
-  const W = 660, H = 430, CX = W / 2, CY = H / 2, R = 148;
+  const W = 660, H = 430, CX = W / 2, CY = H / 2;
   const watchTxt = ((BRIEF && BRIEF.watch) || []).join(" ").toLowerCase();
   const sesCount = (slug, toks) => NOTES.filter(n =>
     ((n.title || "") + " " + n.name).toLowerCase().split(/\s+/).some(w => toks.includes(w) || w.includes(slug))).length;
-  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
   const nodes = SLUGS.slice(0, 10);
-  nodes.forEach((s, i) => {
-    const a = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
-    const x = CX + R * Math.cos(a), y = CY + R * Math.sin(a);
-    const mx = CX + (R * 0.5) * Math.cos(a + 0.35), my = CY + (R * 0.5) * Math.sin(a + 0.35);
-    svg += '<path class="bv-edge flow" d="M ' + CX + ' ' + CY + ' Q ' + mx + ' ' + my + ' ' + x + ' ' + y + '" style="animation-delay:' + (i * 0.4) + 's"/>';
-  });
-  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="32"/>';
-  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="42" style="animation-delay:1.1s"/>';
-  svg += '<circle class="bv-core" cx="' + CX + '" cy="' + CY + '" r="21"/>';
-  svg += '<text x="' + CX + '" y="' + (CY + 5.5) + '" text-anchor="middle" style="font-size:18px">🧠</text>';
-  nodes.forEach((s, i) => {
-    const a = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
-    const x = CX + R * Math.cos(a), y = CY + R * Math.sin(a);
+  const N = nodes.length;
+  // organic, deterministic layout: nodes sit on an ellipse whose radius
+  // varies per node, so the web reads grown rather than drawn
+  const pts = nodes.map((s, i) => {
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2 + (((i * 37) % 5) - 2) * 0.05;
+    const rx = 168 + ((i * 53) % 3) * 26, ry = rx * 0.62;
     const n = sesCount(s.slug, s.toks);
-    const r = 11 + Math.min(11, n * 1.8);
-    const hot = s.toks.some(w => watchTxt.includes(w)) || watchTxt.includes(s.slug);
-    const sats = Math.min(4, Math.max(1, Math.round(n / 3)));
+    return { s, a, n,
+      x: CX + rx * Math.cos(a), y: CY + ry * Math.sin(a),
+      r: 10 + Math.min(10, n * 1.7),
+      hot: s.toks.some(w => watchTxt.includes(w)) || watchTxt.includes(s.slug) };
+  });
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
+  svg += '<defs>'
+    + '<radialGradient id="bvGlow"><stop offset="0%" stop-color="#3559d6" stop-opacity=".14"/><stop offset="55%" stop-color="#3559d6" stop-opacity=".05"/><stop offset="100%" stop-color="#3559d6" stop-opacity="0"/></radialGradient>'
+    + '<radialGradient id="bvGlowW"><stop offset="0%" stop-color="#a35200" stop-opacity=".16"/><stop offset="55%" stop-color="#a35200" stop-opacity=".06"/><stop offset="100%" stop-color="#a35200" stop-opacity="0"/></radialGradient>'
+    + '<radialGradient id="bvCoreG"><stop offset="0%" stop-color="#2b2b36"/><stop offset="100%" stop-color="#16161d"/></radialGradient>'
+    + '</defs>';
+  // depth: two faint dotted orbits
+  svg += '<ellipse class="bv-orbit" cx="' + CX + '" cy="' + CY + '" rx="150" ry="96"/>';
+  svg += '<ellipse class="bv-orbit" cx="' + CX + '" cy="' + CY + '" rx="222" ry="140"/>';
+  // faint mesh between neighbouring nodes — the web, not just spokes
+  pts.forEach((p, i) => {
+    const q = pts[(i + 1) % N];
+    const mx = (p.x + q.x) / 2 + (CX - (p.x + q.x) / 2) * 0.18;
+    const my = (p.y + q.y) / 2 + (CY - (p.y + q.y) / 2) * 0.18;
+    svg += '<path class="bv-mesh" d="M ' + p.x + ' ' + p.y + ' Q ' + mx + ' ' + my + ' ' + q.x + ' ' + q.y + '"/>';
+  });
+  // synapses: organic curves from core to node, each carrying a travelling pulse
+  pts.forEach((p, i) => {
+    const sway = (((i * 29) % 7) - 3) * 14;
+    const c1x = CX + (p.x - CX) * 0.32 - Math.sin(p.a) * sway;
+    const c1y = CY + (p.y - CY) * 0.32 + Math.cos(p.a) * sway;
+    const c2x = CX + (p.x - CX) * 0.72 + Math.sin(p.a) * sway * 0.6;
+    const c2y = CY + (p.y - CY) * 0.72 - Math.cos(p.a) * sway * 0.6;
+    svg += '<path id="bv-e' + i + '" class="bv-edge" d="M ' + CX + ' ' + CY +
+      ' C ' + c1x + ' ' + c1y + ', ' + c2x + ' ' + c2y + ', ' + p.x + ' ' + p.y + '"/>';
+    svg += '<circle class="bv-pulse' + (p.hot ? " warn" : "") + '" r="2.6">' +
+      '<animateMotion dur="' + (3 + (i % 4) * 0.7) + 's" begin="' + (i * 0.45) + 's" repeatCount="indefinite">' +
+      '<mpath href="#bv-e' + i + '"/></animateMotion></circle>';
+  });
+  // the core
+  svg += '<circle cx="' + CX + '" cy="' + CY + '" r="64" fill="url(#bvGlow)"/>';
+  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="34"/>';
+  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="45" style="animation-delay:1.1s"/>';
+  svg += '<circle cx="' + CX + '" cy="' + CY + '" r="23" fill="url(#bvCoreG)"/>';
+  svg += '<text x="' + CX + '" y="' + (CY + 6) + '" text-anchor="middle" style="font-size:19px">🧠</text>';
+  // the nodes
+  pts.forEach((p) => {
+    const { x, y, r, a, n, hot, s } = p;
     let g = '<g class="bv-node' + (hot ? " warn" : "") + '" data-slug="' + esc(s.slug) + '">';
-    if (hot) g += '<circle class="bv-halo" cx="' + x + '" cy="' + y + '" r="' + (r + 6) + '"/>';
+    g += '<circle cx="' + x + '" cy="' + y + '" r="' + (r * 2.6) + '" fill="url(#' + (hot ? "bvGlowW" : "bvGlow") + ')"/>';
+    if (hot) g += '<circle class="bv-halo" cx="' + x + '" cy="' + y + '" r="' + (r + 7) + '"/>';
     g += '<circle class="body" cx="' + x + '" cy="' + y + '" r="' + r + '"/>';
+    g += '<circle class="nucleus" cx="' + x + '" cy="' + y + '" r="' + Math.max(3, r * 0.34) + '"/>';
+    const sats = Math.min(4, Math.max(1, Math.round(n / 3)));
     for (let k = 0; k < sats; k++) {
       const sa = a + (k - sats / 2) * 0.5 + 0.25;
-      g += '<circle class="bv-sat" cx="' + (x + (r + 8) * Math.cos(sa)) + '" cy="' + (y + (r + 8) * Math.sin(sa)) + '" r="2.4"/>';
+      g += '<circle class="bv-sat" cx="' + (x + (r + 9) * Math.cos(sa)) + '" cy="' + (y + (r + 9) * Math.sin(sa)) + '" r="2.2"/>';
     }
-    const lx = CX + (R + r + 20) * Math.cos(a), ly = CY + (R + r + 18) * Math.sin(a);
+    const lx = x + (r + 14) * Math.cos(a) * 1.25, ly = y + (r + 16) * Math.sin(a) + 4;
     const anch = Math.cos(a) > 0.35 ? "start" : Math.cos(a) < -0.35 ? "end" : "middle";
-    const label = s.slug.length > 15 ? s.slug.slice(0, 14) + "…" : s.slug;
-    g += '<text x="' + lx + '" y="' + (ly + 3.5) + '" text-anchor="' + anch + '">' + esc(label) + '</text>';
+    const label = s.slug.length > 17 ? s.slug.slice(0, 16) + "…" : s.slug;
+    g += '<text x="' + lx + '" y="' + ly + '" text-anchor="' + anch + '">' + esc(label) + '</text>';
     g += "</g>";
     svg += g;
   });
   svg += "</svg>";
   el.innerHTML = svg;
-  el.querySelectorAll(".bv-node").forEach(n => {
-    n.classList.toggle("sel", n.dataset.slug === SEL);
-    n.addEventListener("click", () => selectNode(n.dataset.slug));
-  });
+  el.querySelectorAll(".bv-node").forEach(n =>
+    n.addEventListener("click", () => nav("project/" + encodeURIComponent(n.dataset.slug))));
 }
 
 let briefTries = 0;
 async function loadBrief() {
   await ensureTopics();
-  if (!SEL) {
-    const f = new URLSearchParams(location.search).get("focus");
-    if (f && SLUGS.some(s => s.slug === f)) SEL = f;
-  }
   let d;
   try { d = await (await fetch("/api/briefing")).json(); } catch { d = {}; }
   await ensureNotes();
@@ -875,9 +850,10 @@ async function loadBrief() {
   buildBrain();
   await ensureState();
   $("#st-rules").textContent = (STATE_MEM && STATE_MEM.conventions.length) || "–";
-  renderReadout(SEL);
+  $("#readout").innerHTML = SLUGS.length
+    ? '<div class="ro-hint">Click a project — see exactly what it remembers.</div>'
+    : '<div class="ro-hint">Nothing compiled yet — this fills in as you work.</div>';
   if (!d.ready && briefTries++ < 60) setTimeout(loadBrief, 2500);
-  else if (!d.ready && !d.data) $("#readout").innerHTML = '<div class="ro-hint">Nothing compiled yet — this fills in as you work.</div>';
 }
 
 // ------------------------------------------------------------- timeline
