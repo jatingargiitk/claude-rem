@@ -9,7 +9,7 @@ session ends ──► condense transcript (no LLM, <private> stripped)
              ──► claude-rem applies the files itself (atomic, path-jailed)
              ──► git commit
 session starts ─► receipt + briefing injected; later prompts get
-                  relevance-matched topic notes, or silence
+                  relevance-matched project notes, or silence
 ```
 
 The model never touches your disk during a harvest. It returns text; the
@@ -61,9 +61,9 @@ not yet scaffolded".
 - **First prompt of a session**: the full STATE briefing, your RULES, the
   topic list, and a receipt line naming what was injected:
   `🧠 brain → STATE.md · 14 topics indexed (harvest 33m ago)`
-- **Every later prompt**: scored lexically against topic notes (distinctive
+- **Every later prompt**: scored lexically against project notes (distinctive
   words weighted, slug matches weighted over body matches, no model call).
-  Match: that topic note plus a receipt. No match: nothing at all.
+  Match: that project note plus a receipt. No match: nothing at all.
 - Weak, ambiguous matches are demoted and labeled as lexical guesses so the
   agent verifies the referent instead of trusting it blindly.
 

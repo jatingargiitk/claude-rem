@@ -315,9 +315,8 @@
     <div>
       <h3>Memory</h3>
       <div class="stats">
-        <button class="stat" id="stat-topics"><b id="st-topics">–</b><span>topics</span></button>
-        <button class="stat" id="stat-notes"><b id="st-notes">–</b><span>notes</span></button>
-        <button class="stat" id="stat-sessions"><b id="st-sessions">–</b><span>sessions</span></button>
+        <button class="stat" id="stat-topics"><b id="st-topics">–</b><span>projects</span></button>
+        <button class="stat" id="stat-notes"><b id="st-notes">–</b><span>sessions</span></button>
       </div>
     </div>
     <div style="min-width:200px">
@@ -341,7 +340,7 @@
       <div class="card mini watch"><h3>Heads up</h3><ul id="watch"></ul></div>
     </div>
 
-    <h2 class="sec">Latest session notes</h2>
+    <h2 class="sec">Latest sessions</h2>
     <div class="sec-sub">newest first · click to read</div>
     <div id="feed"><div class="empty">Loading…</div></div>
   </main>
@@ -562,7 +561,7 @@ async function showSearch(q) {
   const html = rs.map((r, i) =>
     '<div class="scard" data-i="' + i + '">' +
       '<span class="sage">' + esc(r.age || "") + '</span>' +
-      '<div class="sk">' + (r.kind === "project" ? "project" : r.kind === "briefing" ? "briefing" : "session note") + '</div>' +
+      '<div class="sk">' + (r.kind === "project" ? "project" : r.kind === "briefing" ? "briefing" : "session") + '</div>' +
       '<div class="st">' + esc(r.title || r.name) + '</div>' +
       '<div class="sl">' + (r.lines || []).map(l => esc(l)).join("<br>") + '</div>' +
     '</div>').join("");
@@ -580,7 +579,7 @@ async function showList(which) {
   const html = '<ul class="plist">' + items.map((it, i) =>
     '<li><button data-i="' + i + '"><span class="nm">' + esc(it.title || it.name) +
     '</span><span class="ag">' + esc(it.age || "") + "</span></button></li>").join("") + "</ul>";
-  panelShow(which === "projects" ? "Projects" : "Session notes", items.length + " total", html);
+  panelShow(which === "projects" ? "Projects" : "Sessions", items.length + " total", html);
   document.querySelectorAll("#p-body .plist button").forEach(b =>
     b.addEventListener("click", () => { const i = Number(b.dataset.i); setCtx(list, i); nav(list[i].hash); }));
 }
@@ -655,7 +654,6 @@ async function loadReceipt() {
   const c = d.counts || {};
   $("#st-topics").textContent = c.topics ?? "–";
   $("#st-notes").textContent = c.digests ?? "–";
-  $("#st-sessions").textContent = c.harvested ?? "–";
 }
 async function loadTopics() {
   await ensureTopics();
@@ -670,7 +668,6 @@ async function loadTopics() {
 }
 $("#stat-topics").addEventListener("click", () => nav("list/projects"));
 $("#stat-notes").addEventListener("click", () => nav("list/notes"));
-$("#stat-sessions").addEventListener("click", () => nav("list/notes"));
 
 // ------------------------------------------------------- briefing + rails
 function railItem(x) {

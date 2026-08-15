@@ -709,7 +709,7 @@ rmdir "$BRAIN/.state/harvest.lock"
 r=1
 grep -q "helloworldfact" "$BRAIN/STATE.md" \
   && git -C "$BRAIN" log --oneline | grep -q "init: brain compiled from" \
-  && echo "$INIT_OUT" | grep -q "Brain compiled: .* session digest(s), .* topic note(s)." \
+  && echo "$INIT_OUT" | grep -q "Brain compiled: .* session digest(s), .* project note(s)." \
   && echo "$INIT_OUT" | grep -q "===== Your starter briefing =====" && r=0
 check "init: fan-out compiled digests+topics+STATE (3 stubbed calls) + committed + printed" $r
 
@@ -1020,7 +1020,7 @@ check "ui: /api/overview plain-language receipt + counts + metrics" $r
 PAGE=$(fetch "$UI/")
 r=1
 echo "$PAGE" | grep -q 'id="q"' \
-  && echo "$PAGE" | grep -q "Latest session notes" \
+  && echo "$PAGE" | grep -q "Latest sessions" \
   && echo "$PAGE" | grep -q "Workspace briefing" \
   && echo "$PAGE" | grep -q "Ask your brain" \
   && ! echo "$PAGE" | grep -q "Metrics" \

@@ -66,7 +66,7 @@ if [ -f "$BRAIN_DIR/.state/last_failure" ]; then
   warn=" · WARNING: LAST HARVEST FAILED — brain may be stale (.claude-rem/.state/harvest.log)"
 fi
 ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
-receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
+receipt="🧠 brain → STATE.md · ${ntopics} projects indexed (harvest ${freshness})${warn}"
 
 ctx="[CODING BRAIN] Compiled memory from previous sessions — LEADS, not findings. Open threads are starting points: investigate, do not recite. Verify status claims before repeating them. Answer the question as asked, at the size asked. If the prompt names a project or term that appears nowhere in this briefing, do not map it onto the closest-sounding known project — identify the real referent from the workspace first.
 

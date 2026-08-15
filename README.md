@@ -80,7 +80,7 @@ Init scans your past sessions (with your consent) and compiles a real
 starting brain, so it remembers your history from day one:
 
 ```
-Brain compiled: 43 session digest(s), 14 topic note(s) in 434s.
+Brain compiled: 43 session digest(s), 14 project note(s) in 434s.
 ```
 
 A few minutes, once per workspace, ever. It runs on the Claude subscription
@@ -124,7 +124,7 @@ The first prompt of a session gets the full briefing, with a receipt naming
 exactly what was injected:
 
 ```
-🧠 brain → STATE.md · 14 topics indexed (harvest 33m ago)
+🧠 brain → STATE.md · 14 projects indexed (harvest 33m ago)
 ```
 
 Later prompts only get the note they're about, or nothing:
@@ -209,7 +209,7 @@ session ends ──► condense transcript (no LLM, <private> stripped)
              ──► claude-rem applies the files itself (atomic, path-jailed)
              ──► git commit
 session starts ─► receipt + briefing injected; later prompts get
-                  relevance-matched topic notes, or silence
+                  relevance-matched project notes, or silence
 ```
 
 The model never touches your disk. One single-turn call per debounced

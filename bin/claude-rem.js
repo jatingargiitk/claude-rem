@@ -795,7 +795,7 @@ async function fanoutCompile(brain, workspace, sessions, cfg) {
   // failure is ever silent.
   const digestFiles = fs.readdirSync(path.join(brain, 'sessions')).filter((f) => f.endsWith('.md'));
   const topicFmt = instructionsSection(brain, /^## Step 1\.5/, /^## Step 2/);
-  console.log('Compiling topic notes...');
+  console.log('Compiling project notes...');
   const parts = digestFiles.map((f) => `----- ${f} -----\n` + fs.readFileSync(path.join(brain, 'sessions', f), 'utf8'));
   const chunks = [];
   let curChunk = '';
@@ -987,14 +987,14 @@ async function cmdInit(args) {
     if (n === 0) {
       console.log('No usable transcript content after filtering — skipping the starter briefing.');
     } else {
-      console.log(`Compiling your brain from ${n} session(s) - digests, topic notes, and the briefing...`);
+      console.log(`Compiling your brain from ${n} session(s) - digests, project notes, and the briefing...`);
       const res = await fanoutCompile(brain, workspace, selected, cfg);
       if (res.digests > 0 && fs.existsSync(path.join(brain, 'STATE.md'))) {
         spawnSync('git', ['-C', brain, 'add', '-A'], { stdio: 'ignore' });
         spawnSync('git', ['-C', brain, '-c', 'user.name=claude-rem', '-c', 'user.email=claude-rem@local',
           'commit', '-qm', `init: brain compiled from ${n} sessions`], { stdio: 'ignore' });
         const costNote = res.cost > 0.005 ? ` · ~$${res.cost.toFixed(2)} of model time` : '';
-        console.log(`\nBrain compiled: ${res.digests} session digest(s), ${res.topics} topic note(s) in ${Math.round(res.secs)}s${costNote}.`);
+        console.log(`\nBrain compiled: ${res.digests} session digest(s), ${res.topics} project note(s) in ${Math.round(res.secs)}s${costNote}.`);
         console.log('\n===== Your starter briefing =====\n');
         console.log(fs.readFileSync(path.join(brain, 'STATE.md'), 'utf8'));
         console.log('=================================\n');

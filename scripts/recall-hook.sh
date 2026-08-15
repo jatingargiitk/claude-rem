@@ -120,7 +120,7 @@ if [ -f "$GLOBAL_RULES" ] && grep -v '^[[:space:]]*#' "$GLOBAL_RULES" 2>/dev/nul
 fi
 GR_FLAG=""
 [ "$GLOBAL_ACTIVE" -eq 1 ] && GR_FLAG=" · global rules"
-receipt="🧠 brain → STATE.md · ${ntopics} topics indexed${GR_FLAG} (harvest ${freshness})${warn}"
+receipt="🧠 brain → STATE.md · ${ntopics} projects indexed${GR_FLAG} (harvest ${freshness})${warn}"
 
 # --- Follow-up prompts: relevance-gated, or silent. ------------------------
 # After the first prompt the full STATE dump is already in context, so re-sending

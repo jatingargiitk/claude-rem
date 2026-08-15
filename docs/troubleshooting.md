@@ -32,7 +32,7 @@ Editors load hook config at startup: restart Claude Code / Cursor after
 
 ## The briefing says "0 topics"
 
-Small corpora compile into STATE only: topic notes appear once a project
+Small corpora compile into STATE only: project notes appear once a project
 has enough distinct sessions. It fills in as you work.
 
 ## The viewer shows nothing

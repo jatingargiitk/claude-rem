@@ -62,7 +62,7 @@ if [ -f "$GLOBAL_RULES" ] && grep -v '^[[:space:]]*#' "$GLOBAL_RULES" 2>/dev/nul
 === Global rules (all workspaces — ~/.claude-rem/RULES.md) ===
 $(grep -v '^[[:space:]]*#' "$GLOBAL_RULES")"
 fi
-receipt="🧠 brain → STATE.md · ${ntopics} topics indexed (harvest ${freshness})${warn}"
+receipt="🧠 brain → STATE.md · ${ntopics} projects indexed (harvest ${freshness})${warn}"
 
 BLOCK="$START_MARK
 ## Coding brain (managed block — refreshed automatically, do not edit)
