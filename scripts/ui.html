@@ -6,26 +6,8 @@
 <title>claude-rem</title>
 <style>
   :root {
-    --bg: #0a0a0a;
-    --bg-2: #141415;
-    --ink: #ededed;
-    --muted: #8f8f8f;
-    --line: #1f1f21;
-    --line-2: #2e2e31;
-    --card: #0f0f10;
-    --accent: #7c9cff;
-    --accent-soft: #14192b;
-    --accent-ink: #0a0a0a;
-    --code-bg: #1a1a1c;
-    --pre-bg: #050506;
-    --pre-ink: #d7dae1;
-    --win: #45d483;
-    --warn: #f5a623;
-    --sans: -apple-system, "SF Pro Display", "SF Pro Text", "Segoe UI", Inter, sans-serif;
-    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    --shadow: none;
-  }
-  :root[data-theme="light"] {
+      --sans: -apple-system, "SF Pro Display", "SF Pro Text", "Segoe UI", Inter, sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
       --bg: #fafafa; --bg-2: #f2f2f2; --ink: #171717; --muted: #666666;
       --line: #eaeaea; --line-2: #d4d4d4; --card: #ffffff; --accent: #3559d6;
       --accent-soft: #eef2ff; --accent-ink: #ffffff; --code-bg: #f0f0f0;
@@ -76,10 +58,6 @@
     background: var(--bg-2); color: var(--muted); width: 24px; height: 24px;
     border-radius: 999px; cursor: pointer; }
   .clock { color: var(--muted); font-size: 0.72rem; font-family: var(--mono); white-space: nowrap; }
-  .theme-btn { appearance: none; border: 1px solid var(--line-2); background: var(--bg-2);
-    color: var(--muted); width: 28px; height: 28px; border-radius: 7px; cursor: pointer;
-    font-size: 0.9rem; line-height: 1; }
-  .theme-btn:hover { color: var(--accent); border-color: var(--accent); }
   .status { display: flex; align-items: center; gap: 7px; font-family: var(--mono);
     font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
   .sdot { width: 7px; height: 7px; border-radius: 999px; background: var(--win);
@@ -307,7 +285,6 @@
       <kbd class="kbd" id="q-kbd" title="Command palette">⌘K</kbd>
       <button class="go" id="q-go" title="Search">→</button>
     </div>
-    <button class="theme-btn" id="theme-btn" title="Toggle theme">◐</button>
     <div class="clock" id="clock">—</div>
   </header>
 
@@ -781,14 +758,6 @@ async function loadStream() {
   });
   wireChips(feed);
 }
-
-const savedTheme = localStorage.getItem("rem-theme");
-if (savedTheme) document.documentElement.dataset.theme = savedTheme;
-$("#theme-btn").addEventListener("click", () => {
-  const next = document.documentElement.dataset.theme === "light" ? "" : "light";
-  if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme;
-  localStorage.setItem("rem-theme", next);
-});
 
 (async () => { await loadReceipt(); loadTopics(); loadBrief(); loadStream(); route(); })();
 setInterval(() => { loadReceipt(); loadStream(); }, 15000);
