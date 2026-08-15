@@ -120,8 +120,8 @@
   .livechip { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
     background: color-mix(in srgb, var(--win) 14%, transparent); color: var(--win);
     font-size: 0.6rem; letter-spacing: 0.1em; }
-  .heromix { display: flex; flex-direction: column; gap: 18px; }
-  .brainviz { position: relative; width: 100%; max-width: 560px; margin: 0 auto; }
+  .heromix { display: flex; flex-direction: column; gap: 14px; }
+  .brainviz { position: relative; width: 100%; max-width: 660px; margin: 0 auto; }
   .brainviz svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .bv-edge { fill: none; stroke: var(--line-2); stroke-width: 1; }
   .bv-edge.flow { stroke-dasharray: 3 7; animation: synapse 3.2s linear infinite; }
@@ -135,7 +135,7 @@
     transition: all .15s; }
   .bv-node.warn circle.body { stroke: var(--warn); }
   .bv-node:hover circle.body { fill: var(--accent-soft); stroke-width: 2.2; }
-  .bv-node text { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+  .bv-node text { font-family: var(--mono); font-size: 11.5px; fill: var(--muted); }
   .bv-node:hover text { fill: var(--accent); }
   .bv-sat { fill: var(--accent); opacity: .45; }
   .bv-node.sel circle.body { stroke-width: 2.4; fill: var(--accent-soft); }
@@ -165,7 +165,10 @@
   .ro-chip:hover { border-color: var(--accent); color: var(--accent); }
   .ro-full { display: inline-block; margin-top: 14px; font-family: var(--mono);
     font-size: 0.74rem; color: var(--accent); text-decoration: none; }
-  .ro-hint { margin-top: 14px; font-size: 0.85rem; color: var(--muted); }
+  .ro-hint { margin-top: 4px; font-size: 0.85rem; color: var(--muted); text-align: center; }
+  .rlist { margin: 14px 0 0; padding-left: 20px; display: flex; flex-direction: column;
+    gap: 12px; font-size: 0.95rem; line-height: 1.65; }
+  .rlist li::marker { color: var(--accent); }
   .bv-halo { fill: none; stroke: var(--warn); stroke-width: 1; opacity: .55;
     animation: corepulse 2.2s ease-in-out infinite; }
   .hero .label { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em;
@@ -345,6 +348,7 @@
       <div class="stats">
         <button class="stat" id="stat-topics"><b id="st-topics">–</b><span>projects</span></button>
         <button class="stat" id="stat-notes"><b id="st-notes">–</b><span>sessions</span></button>
+        <button class="stat" id="stat-rules"><b id="st-rules">–</b><span>rules</span></button>
       </div>
     </div>
     <div style="min-width:200px">
@@ -358,9 +362,8 @@
     <section class="hero card">
       <div class="label">Your brain <span class="livechip">live</span></div>
       <div class="heromix">
-        <div class="brainviz" id="brainviz"></div>
-        <div id="hero-body">
-          <div class="skeleton"><span class="pulse"></span> reading your memory…</div>
+        <div class="brainviz" id="brainviz">
+          <div class="skeleton" style="justify-content:center;padding-top:120px"><span class="pulse"></span> reading your memory…</div>
         </div>
         <div id="readout"></div>
       </div>
@@ -603,6 +606,15 @@ async function showSearch(q) {
 }
 
 async function showList(which) {
+  if (which === "rules") {
+    await ensureState();
+    const rules = (STATE_MEM && STATE_MEM.conventions) || [];
+    const html = rules.length
+      ? '<ul class="rlist">' + rules.map(r => "<li>" + inlineMd(r) + "</li>").join("") + "</ul>"
+      : '<p class="empty">No conventions learned yet — correct it once and it sticks.</p>';
+    panelShow("Rules", rules.length + " conventions it holds you to", html);
+    return;
+  }
   const items = which === "projects" ? await ensureTopics() : await ensureNotes();
   const list = items.map(it => ({
     hash: which === "projects" ? "project/" + encodeURIComponent(it.name.replace(/\.md$/, ""))
@@ -700,6 +712,7 @@ async function loadTopics() {
 }
 $("#stat-topics").addEventListener("click", () => nav("list/projects"));
 $("#stat-notes").addEventListener("click", () => nav("list/notes"));
+$("#stat-rules").addEventListener("click", () => nav("list/rules"));
 
 // ------------------------------------------------------- briefing + rails
 function railItem(x) {
@@ -724,11 +737,6 @@ function fillRail(id, items) {
 function renderBrief(data, ready) {
   if (!data) return;
   BRIEF = data;
-  const parts = [];
-  if (data.headline) parts.push('<div class="headline">' + inlineMd(data.headline) + "</div>");
-  if (!parts.length) parts.push('<p class="narrative">Fresh brain — it fills in as you work.</p>');
-  if (!ready) parts.push('<div class="skeleton" style="margin-top:10px;font-size:0.8rem"><span class="pulse"></span> refreshing…</div>');
-  $("#hero-body").innerHTML = parts.join("");
   const any = ["left_off", "wins", "watch"].some(k => (data[k] || []).length);
   $("#trio").style.display = any ? "" : "none";
   if (any) {
@@ -771,15 +779,8 @@ function renderReadout(slug) {
   if (!el) return;
   const mem = STATE_MEM || { projects: [], conventions: [], threads: [] };
   if (!slug) {
-    let h = "";
-    if (mem.conventions.length) {
-      h += '<div class="ro-label">Rules it holds you to</div><ul class="ro-list">' +
-        mem.conventions.slice(0, 5).map(c => "<li>" + inlineMd(c) + "</li>").join("") + "</ul>";
-    } else if (BRIEF && BRIEF.narrative) {
-      h += '<p class="ro-now">' + inlineMd(BRIEF.narrative) + "</p>";
-    }
-    if (SLUGS.length) h += '<div class="ro-hint">Click a project on the map — see exactly what it remembers.</div>';
-    el.innerHTML = h;
+    el.innerHTML = SLUGS.length
+      ? '<div class="ro-hint">Click a project — see exactly what it remembers.</div>' : "";
     return;
   }
   const low = slug.toLowerCase();
@@ -815,7 +816,7 @@ function selectNode(slug) {
 function buildBrain() {
   const el = $("#brainviz");
   if (!el || !SLUGS.length) { if (el) el.innerHTML = ""; return; }
-  const W = 560, H = 330, CX = W / 2, CY = H / 2, R = 110;
+  const W = 660, H = 430, CX = W / 2, CY = H / 2, R = 148;
   const watchTxt = ((BRIEF && BRIEF.watch) || []).join(" ").toLowerCase();
   const sesCount = (slug, toks) => NOTES.filter(n =>
     ((n.title || "") + " " + n.name).toLowerCase().split(/\s+/).some(w => toks.includes(w) || w.includes(slug))).length;
@@ -827,15 +828,15 @@ function buildBrain() {
     const mx = CX + (R * 0.5) * Math.cos(a + 0.35), my = CY + (R * 0.5) * Math.sin(a + 0.35);
     svg += '<path class="bv-edge flow" d="M ' + CX + ' ' + CY + ' Q ' + mx + ' ' + my + ' ' + x + ' ' + y + '" style="animation-delay:' + (i * 0.4) + 's"/>';
   });
-  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="26"/>';
-  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="34" style="animation-delay:1.1s"/>';
-  svg += '<circle class="bv-core" cx="' + CX + '" cy="' + CY + '" r="17"/>';
-  svg += '<text x="' + CX + '" y="' + (CY + 4.5) + '" text-anchor="middle" style="font-size:15px">🧠</text>';
+  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="32"/>';
+  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="42" style="animation-delay:1.1s"/>';
+  svg += '<circle class="bv-core" cx="' + CX + '" cy="' + CY + '" r="21"/>';
+  svg += '<text x="' + CX + '" y="' + (CY + 5.5) + '" text-anchor="middle" style="font-size:18px">🧠</text>';
   nodes.forEach((s, i) => {
     const a = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
     const x = CX + R * Math.cos(a), y = CY + R * Math.sin(a);
     const n = sesCount(s.slug, s.toks);
-    const r = 9 + Math.min(9, n * 1.6);
+    const r = 11 + Math.min(11, n * 1.8);
     const hot = s.toks.some(w => watchTxt.includes(w)) || watchTxt.includes(s.slug);
     const sats = Math.min(4, Math.max(1, Math.round(n / 3)));
     let g = '<g class="bv-node' + (hot ? " warn" : "") + '" data-slug="' + esc(s.slug) + '">';
@@ -873,9 +874,10 @@ async function loadBrief() {
   if (d.data) renderBrief(d.data, !!d.ready);
   buildBrain();
   await ensureState();
+  $("#st-rules").textContent = (STATE_MEM && STATE_MEM.conventions.length) || "–";
   renderReadout(SEL);
   if (!d.ready && briefTries++ < 60) setTimeout(loadBrief, 2500);
-  else if (!d.ready && !d.data) $("#hero-body").innerHTML = '<p class="narrative">Nothing compiled yet — this fills in as you work.</p>';
+  else if (!d.ready && !d.data) $("#readout").innerHTML = '<div class="ro-hint">Nothing compiled yet — this fills in as you work.</div>';
 }
 
 // ------------------------------------------------------------- timeline
