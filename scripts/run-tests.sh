@@ -1020,8 +1020,8 @@ check "ui: /api/overview plain-language receipt + counts + metrics" $r
 PAGE=$(fetch "$UI/")
 r=1
 echo "$PAGE" | grep -q 'id="q"' \
-  && echo "$PAGE" | grep -q "What it's learned" \
-  && echo "$PAGE" | grep -q "What it knows right now" \
+  && echo "$PAGE" | grep -q "Latest session notes" \
+  && echo "$PAGE" | grep -q "Workspace briefing" \
   && echo "$PAGE" | grep -q "Ask your brain" \
   && ! echo "$PAGE" | grep -q "Metrics" \
   && ! echo "$PAGE" | grep -q "Harvest log" \
