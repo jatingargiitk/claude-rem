@@ -1,6 +1,6 @@
 {
   "name": "claude-rem",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Session memory for AI coding agents: decisions, fixes, and gotchas remembered across Claude Code, Cursor & Codex, verified against git.",
   "keywords": [
     "claude",
