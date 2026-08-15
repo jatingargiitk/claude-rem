@@ -117,6 +117,29 @@
 
   /* ---------- hero: the briefing ---------- */
   .hero { padding: 4px 0 8px; border: 0; background: transparent; }
+  .livechip { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+    background: color-mix(in srgb, var(--win) 14%, transparent); color: var(--win);
+    font-size: 0.6rem; letter-spacing: 0.1em; }
+  .heromix { display: flex; flex-direction: column; gap: 18px; }
+  .brainviz { position: relative; width: 100%; max-width: 560px; margin: 0 auto; }
+  .brainviz svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .bv-edge { fill: none; stroke: var(--line-2); stroke-width: 1; }
+  .bv-edge.flow { stroke-dasharray: 3 7; animation: synapse 3.2s linear infinite; }
+  @keyframes synapse { to { stroke-dashoffset: -40; } }
+  .bv-core { fill: var(--ink); }
+  .bv-corering { fill: none; stroke: var(--line-2); stroke-width: 1;
+    animation: corepulse 3.4s ease-in-out infinite; transform-origin: center; }
+  @keyframes corepulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+  .bv-node { cursor: pointer; }
+  .bv-node circle.body { fill: var(--card); stroke: var(--accent); stroke-width: 1.4;
+    transition: all .15s; }
+  .bv-node.warn circle.body { stroke: var(--warn); }
+  .bv-node:hover circle.body { fill: var(--accent-soft); stroke-width: 2.2; }
+  .bv-node text { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+  .bv-node:hover text { fill: var(--accent); }
+  .bv-sat { fill: var(--accent); opacity: .45; }
+  .bv-halo { fill: none; stroke: var(--warn); stroke-width: 1; opacity: .55;
+    animation: corepulse 2.2s ease-in-out infinite; }
   .hero .label { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em;
     text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 14px; }
   .hero .headline { font-size: clamp(1.2rem, 1.9vw, 1.5rem); font-weight: 650;
@@ -305,9 +328,12 @@
 
   <main class="main">
     <section class="hero card">
-      <div class="label">Workspace briefing</div>
-      <div id="hero-body">
-        <div class="skeleton"><span class="pulse"></span> reading your memory…</div>
+      <div class="label">Your brain <span class="livechip">live</span></div>
+      <div class="heromix">
+        <div class="brainviz" id="brainviz"></div>
+        <div id="hero-body">
+          <div class="skeleton"><span class="pulse"></span> reading your memory…</div>
+        </div>
       </div>
     </section>
 
@@ -679,17 +705,62 @@ function renderBrief(data, ready) {
   $("#trio").style.display = any ? "" : "none";
   if (any) {
     fillRail("#left-off", data.left_off); fillRail("#wins", data.wins); fillRail("#watch", data.watch);
-    $("#c-left").textContent = (data.left_off || []).length || "";
-    $("#c-wins").textContent = (data.wins || []).length || "";
-    $("#c-watch").textContent = (data.watch || []).length || "";
   }
 }
+function buildBrain() {
+  const el = $("#brainviz");
+  if (!el || !SLUGS.length) { if (el) el.innerHTML = ""; return; }
+  const W = 560, H = 330, CX = W / 2, CY = H / 2, R = 110;
+  const watchTxt = ((BRIEF && BRIEF.watch) || []).join(" ").toLowerCase();
+  const sesCount = (slug, toks) => NOTES.filter(n =>
+    ((n.title || "") + " " + n.name).toLowerCase().split(/\s+/).some(w => toks.includes(w) || w.includes(slug))).length;
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
+  const nodes = SLUGS.slice(0, 10);
+  nodes.forEach((s, i) => {
+    const a = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
+    const x = CX + R * Math.cos(a), y = CY + R * Math.sin(a);
+    const mx = CX + (R * 0.5) * Math.cos(a + 0.35), my = CY + (R * 0.5) * Math.sin(a + 0.35);
+    svg += '<path class="bv-edge flow" d="M ' + CX + ' ' + CY + ' Q ' + mx + ' ' + my + ' ' + x + ' ' + y + '" style="animation-delay:' + (i * 0.4) + 's"/>';
+  });
+  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="26"/>';
+  svg += '<circle class="bv-corering" cx="' + CX + '" cy="' + CY + '" r="34" style="animation-delay:1.1s"/>';
+  svg += '<circle class="bv-core" cx="' + CX + '" cy="' + CY + '" r="17"/>';
+  svg += '<text x="' + CX + '" y="' + (CY + 4.5) + '" text-anchor="middle" style="font-size:15px">🧠</text>';
+  nodes.forEach((s, i) => {
+    const a = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
+    const x = CX + R * Math.cos(a), y = CY + R * Math.sin(a);
+    const n = sesCount(s.slug, s.toks);
+    const r = 9 + Math.min(9, n * 1.6);
+    const hot = s.toks.some(w => watchTxt.includes(w)) || watchTxt.includes(s.slug);
+    const sats = Math.min(4, Math.max(1, Math.round(n / 3)));
+    let g = '<g class="bv-node' + (hot ? " warn" : "") + '" data-slug="' + esc(s.slug) + '">';
+    if (hot) g += '<circle class="bv-halo" cx="' + x + '" cy="' + y + '" r="' + (r + 6) + '"/>';
+    g += '<circle class="body" cx="' + x + '" cy="' + y + '" r="' + r + '"/>';
+    for (let k = 0; k < sats; k++) {
+      const sa = a + (k - sats / 2) * 0.5 + 0.25;
+      g += '<circle class="bv-sat" cx="' + (x + (r + 8) * Math.cos(sa)) + '" cy="' + (y + (r + 8) * Math.sin(sa)) + '" r="2.4"/>';
+    }
+    const lx = CX + (R + r + 20) * Math.cos(a), ly = CY + (R + r + 18) * Math.sin(a);
+    const anch = Math.cos(a) > 0.35 ? "start" : Math.cos(a) < -0.35 ? "end" : "middle";
+    const label = s.slug.length > 15 ? s.slug.slice(0, 14) + "…" : s.slug;
+    g += '<text x="' + lx + '" y="' + (ly + 3.5) + '" text-anchor="' + anch + '">' + esc(label) + '</text>';
+    g += "</g>";
+    svg += g;
+  });
+  svg += "</svg>";
+  el.innerHTML = svg;
+  el.querySelectorAll(".bv-node").forEach(n =>
+    n.addEventListener("click", () => nav("project/" + encodeURIComponent(n.dataset.slug))));
+}
+
 let briefTries = 0;
 async function loadBrief() {
   await ensureTopics();
   let d;
   try { d = await (await fetch("/api/briefing")).json(); } catch { d = {}; }
+  await ensureNotes();
   if (d.data) renderBrief(d.data, !!d.ready);
+  buildBrain();
   if (!d.ready && briefTries++ < 60) setTimeout(loadBrief, 2500);
   else if (!d.ready && !d.data) $("#hero-body").innerHTML = '<p class="narrative">Nothing compiled yet — this fills in as you work.</p>';
 }

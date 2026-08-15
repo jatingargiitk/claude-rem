@@ -1021,7 +1021,7 @@ PAGE=$(fetch "$UI/")
 r=1
 echo "$PAGE" | grep -q 'id="q"' \
   && echo "$PAGE" | grep -q "Latest sessions" \
-  && echo "$PAGE" | grep -q "Workspace briefing" \
+  && echo "$PAGE" | grep -q "Your brain" \
   && echo "$PAGE" | grep -q "Ask your brain" \
   && ! echo "$PAGE" | grep -q "Metrics" \
   && ! echo "$PAGE" | grep -q "Harvest log" \

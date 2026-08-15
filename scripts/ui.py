@@ -221,12 +221,19 @@ def _note_title(path: Path) -> str:
             s = line.strip()
             if not s or s.startswith("```"):        # skip blank + fence lines
                 continue
+            # Metadata lines some notes lead with instead of a heading — skip.
+            if re.match(r"^(Updated|Aliases|Date|Tags):", s):
+                continue
+            # A section heading (## …) is never the note's title — give up
+            # and use the filename instead.
+            if s.startswith("##"):
+                break
             s = s.lstrip("# ").strip()
             if s:
                 return re.sub(r"^(Session|Topic):\s*", "", s)[:140]
     except OSError:
         pass
-    return path.stem
+    return path.stem.replace("-", " ").title()
 
 
 def _unfence(text: str) -> str:

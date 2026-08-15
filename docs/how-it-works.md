@@ -60,7 +60,7 @@ not yet scaffolded".
 
 - **First prompt of a session**: the full STATE briefing, your RULES, the
   topic list, and a receipt line naming what was injected:
-  `🧠 brain → STATE.md · 14 topics indexed (harvest 33m ago)`
+  `🧠 brain → STATE.md · 14 projects indexed (harvest 33m ago)`
 - **Every later prompt**: scored lexically against project notes (distinctive
   words weighted, slug matches weighted over body matches, no model call).
   Match: that project note plus a receipt. No match: nothing at all.
