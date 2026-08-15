@@ -6,49 +6,41 @@
 <title>claude-rem</title>
 <style>
   :root {
-    --bg: #0b0b10;
-    --bg-2: #131320;
-    --ink: #ededf2;
-    --muted: #8f8f9d;
-    --line: #232332;
-    --card: #12121b;
-    --accent: #8b9dff;
-    --accent-soft: #1b1d33;
-    --accent-ink: #0b0b10;
-    --code-bg: #1d1d2b;
-    --pre-bg: #08080d;
+    --bg: #0a0a0a;
+    --bg-2: #141415;
+    --ink: #ededed;
+    --muted: #8f8f8f;
+    --line: #1f1f21;
+    --line-2: #2e2e31;
+    --card: #0f0f10;
+    --accent: #7c9cff;
+    --accent-soft: #14192b;
+    --accent-ink: #0a0a0a;
+    --code-bg: #1a1a1c;
+    --pre-bg: #050506;
     --pre-ink: #d7dae1;
-    --win: #3ddc97;
-    --warn: #ffb454;
+    --win: #45d483;
+    --warn: #f5a623;
     --sans: -apple-system, "SF Pro Display", "SF Pro Text", "Segoe UI", Inter, sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    --shadow: 0 1px 2px rgba(0,0,0,.5), 0 8px 32px rgba(0,0,0,.35);
+    --shadow: none;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f7f6f3; --bg-2: #edece8; --ink: #17171c; --muted: #71717c;
-      --line: #e2e1dc; --card: #fffefb; --accent: #4f63e0; --accent-soft: #eceffc;
-      --accent-ink: #ffffff; --code-bg: #ecebe6; --pre-bg: #16161d; --pre-ink: #e6e8ee;
-      --win: #0d8a4f; --warn: #b45309;
-      --shadow: 0 1px 2px rgba(20,22,28,.05), 0 6px 24px rgba(20,22,28,.06);
+      --bg: #fafafa; --bg-2: #f2f2f2; --ink: #171717; --muted: #666666;
+      --line: #eaeaea; --line-2: #d4d4d4; --card: #ffffff; --accent: #3559d6;
+      --accent-soft: #eef2ff; --accent-ink: #ffffff; --code-bg: #f0f0f0;
+      --pre-bg: #16161d; --pre-ink: #e6e8ee;
+      --win: #0d8a4f; --warn: #a35200;
+      --shadow: none;
     }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
-    font-family: var(--sans); font-size: 15px; line-height: 1.6;
+    font-family: var(--sans); font-size: 14.5px; line-height: 1.55;
+    font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased; }
 
-  /* the living bloom - the brain is awake */
-  body::before {
-    content: ""; position: fixed; inset: -20% -10% auto -10%; height: 65vh;
-    background:
-      radial-gradient(46% 60% at 30% 18%, color-mix(in srgb, var(--accent) 17%, transparent), transparent 70%),
-      radial-gradient(38% 52% at 72% 6%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 70%);
-    pointer-events: none; z-index: 0;
-    animation: bloom 14s ease-in-out infinite alternate;
-  }
-  @keyframes bloom { from { opacity: .75; transform: translateX(-1.5%);} to { opacity: 1; transform: translateX(1.5%);} }
-  @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
 
   .shell { position: relative; z-index: 1; display: grid;
     grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: 62px 1fr;
@@ -86,6 +78,16 @@
     background: var(--bg-2); color: var(--muted); width: 24px; height: 24px;
     border-radius: 999px; cursor: pointer; }
   .clock { color: var(--muted); font-size: 0.72rem; font-family: var(--mono); white-space: nowrap; }
+  .status { display: flex; align-items: center; gap: 7px; font-family: var(--mono);
+    font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+  .sdot { width: 7px; height: 7px; border-radius: 999px; background: var(--win);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--win) 22%, transparent);
+    animation: pulse 2.4s ease-in-out infinite; }
+  .kbd { position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); font-size: 0.66rem; color: var(--muted);
+    border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 5px;
+    padding: 1.5px 5px; cursor: pointer; background: var(--bg-2); }
+  .kbd:hover { color: var(--accent); border-color: var(--accent); }
   @media (max-width: 640px) { .clock { display: none; } }
 
   /* ---------- rail ---------- */
@@ -137,10 +139,9 @@
   .hero { padding: 4px 0 8px; border: 0; background: transparent; }
   .hero .label { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em;
     text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 14px; }
-  .hero .headline { font-size: clamp(1.35rem, 2.2vw, 1.8rem); font-weight: 800;
-    letter-spacing: -0.03em; line-height: 1.22; margin: 0 0 14px; max-width: 38ch;
-    background: linear-gradient(135deg, var(--ink) 55%, color-mix(in srgb, var(--accent) 62%, var(--ink)));
-    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero .headline { font-size: clamp(1.2rem, 1.9vw, 1.5rem); font-weight: 650;
+    letter-spacing: -0.02em; line-height: 1.3; margin: 0 0 12px; max-width: 52ch;
+    color: var(--ink); }
   .hero .narrative { font-size: 1.02rem; line-height: 1.7; margin: 0; max-width: 66ch;
     color: color-mix(in srgb, var(--ink) 86%, var(--muted)); }
   .hero code, .mini li code, .feedcard code {
@@ -169,6 +170,7 @@
   .mini li + li { border-top: 1px dashed color-mix(in srgb, var(--line) 70%, transparent); }
   .mini .none { color: var(--muted); font-style: italic; font-size: 0.82rem; }
 
+  .cnt { margin-left: 8px; color: var(--muted); font-weight: 400; }
   h2.sec { font-size: 0.66rem; font-family: var(--mono); letter-spacing: 0.16em;
     text-transform: uppercase; font-weight: 600; color: var(--muted); margin: 44px 0 4px; }
   .sec-sub { color: var(--muted); font-size: 0.78rem; margin: 0 0 18px; }
@@ -199,7 +201,7 @@
     align-items: stretch; justify-content: flex-end; padding: 0; }
   .overlay.open { display: flex; }
   .panel { background: var(--card); border-left: 1px solid var(--line); border-radius: 0;
-    box-shadow: -24px 0 80px rgba(0,0,0,.45); width: min(760px, 94vw);
+    box-shadow: none; width: min(760px, 94vw);
     max-height: 100vh; display: flex; flex-direction: column;
     animation: slidein .16s ease-out; }
   @keyframes slidein { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
@@ -209,8 +211,8 @@
   .phead .navbtn[disabled] { opacity: .3; cursor: default; }
 
   /* search citation cards */
-  .scard { border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px;
-    margin: 12px 0; cursor: pointer; }
+  .scard { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+    margin: 10px 0; cursor: pointer; }
   .scard:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, transparent); }
   .scard .sk { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.1em;
     text-transform: uppercase; color: var(--accent); }
@@ -241,8 +243,8 @@
     background: rgba(5,5,10,.5); backdrop-filter: blur(4px);
     align-items: flex-start; justify-content: center; padding-top: 14vh; }
   .cmdk.open { display: flex; }
-  .cmdk .box { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
-    box-shadow: 0 30px 90px rgba(0,0,0,.5); width: min(600px, 92vw); overflow: hidden; }
+  .cmdk .box { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.35); width: min(600px, 92vw); overflow: hidden; }
   .cmdk input { width: 100%; padding: 16px 20px; border: 0; outline: none;
     background: transparent; color: var(--ink); font: inherit; font-size: 1.02rem;
     border-bottom: 1px solid var(--line); }
@@ -297,8 +299,10 @@
 <div class="shell">
   <header class="topbar">
     <div class="brand"><span class="glyph">🧠</span>claude-rem<span class="tag">remembers what your agent forgets</span></div>
+    <div class="status" id="status"><span class="sdot"></span><span id="status-text">watching</span></div>
     <div class="askwrap">
       <input id="q" placeholder="Ask your brain — how did we fix X · which port · why did we choose Y" autocomplete="off" />
+      <kbd class="kbd" id="q-kbd" title="Command palette">⌘K</kbd>
       <button class="go" id="q-go" title="Search">→</button>
     </div>
     <div class="clock" id="clock">—</div>
@@ -635,6 +639,7 @@ document.addEventListener("keydown", (e) => {
 // ---------------------------------------------------------------- topbar
 const goSearch = () => { const q = $("#q").value.trim(); if (q) nav("search/" + encodeURIComponent(q)); };
 $("#q-go").addEventListener("click", goSearch);
+$("#q-kbd").addEventListener("click", ckOpen);
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") goSearch(); });
 
 // ---------------------------------------------------------------- sidebar
@@ -642,6 +647,8 @@ async function loadReceipt() {
   const d = await (await fetch("/api/overview")).json();
   $("#clock").textContent = "updated " + d.now;
   $("#receipt").textContent = d.receipt || "—";
+  const hm = (d.receipt || "").match(/harvest ([^)]+)\)/);
+  $("#status-text").textContent = hm ? "watching · harvest " + hm[1] : "watching";
   const c = d.counts || {};
   $("#st-topics").textContent = c.topics ?? "–";
   $("#st-notes").textContent = c.digests ?? "–";
@@ -693,7 +700,12 @@ function renderBrief(data, ready) {
   $("#hero-body").innerHTML = parts.join("");
   const any = ["left_off", "wins", "watch"].some(k => (data[k] || []).length);
   $("#trio").style.display = any ? "" : "none";
-  if (any) { fillRail("#left-off", data.left_off); fillRail("#wins", data.wins); fillRail("#watch", data.watch); }
+  if (any) {
+    fillRail("#left-off", data.left_off); fillRail("#wins", data.wins); fillRail("#watch", data.watch);
+    $("#c-left").textContent = (data.left_off || []).length || "";
+    $("#c-wins").textContent = (data.wins || []).length || "";
+    $("#c-watch").textContent = (data.watch || []).length || "";
+  }
 }
 let briefTries = 0;
 async function loadBrief() {
