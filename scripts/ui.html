@@ -25,15 +25,13 @@
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --shadow: none;
   }
-  @media (prefers-color-scheme: light) {
-    :root {
+  :root[data-theme="light"] {
       --bg: #fafafa; --bg-2: #f2f2f2; --ink: #171717; --muted: #666666;
       --line: #eaeaea; --line-2: #d4d4d4; --card: #ffffff; --accent: #3559d6;
       --accent-soft: #eef2ff; --accent-ink: #ffffff; --code-bg: #f0f0f0;
       --pre-bg: #16161d; --pre-ink: #e6e8ee;
       --win: #0d8a4f; --warn: #a35200;
       --shadow: none;
-    }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
@@ -78,6 +76,10 @@
     background: var(--bg-2); color: var(--muted); width: 24px; height: 24px;
     border-radius: 999px; cursor: pointer; }
   .clock { color: var(--muted); font-size: 0.72rem; font-family: var(--mono); white-space: nowrap; }
+  .theme-btn { appearance: none; border: 1px solid var(--line-2); background: var(--bg-2);
+    color: var(--muted); width: 28px; height: 28px; border-radius: 7px; cursor: pointer;
+    font-size: 0.9rem; line-height: 1; }
+  .theme-btn:hover { color: var(--accent); border-color: var(--accent); }
   .status { display: flex; align-items: center; gap: 7px; font-family: var(--mono);
     font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
   .sdot { width: 7px; height: 7px; border-radius: 999px; background: var(--win);
@@ -305,6 +307,7 @@
       <kbd class="kbd" id="q-kbd" title="Command palette">⌘K</kbd>
       <button class="go" id="q-go" title="Search">→</button>
     </div>
+    <button class="theme-btn" id="theme-btn" title="Toggle theme">◐</button>
     <div class="clock" id="clock">—</div>
   </header>
 
@@ -781,6 +784,14 @@ async function loadStream() {
   });
   wireChips(feed);
 }
+
+const savedTheme = localStorage.getItem("rem-theme");
+if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+$("#theme-btn").addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "light" ? "" : "light";
+  if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme;
+  localStorage.setItem("rem-theme", next);
+});
 
 (async () => { await loadReceipt(); loadTopics(); loadBrief(); loadStream(); route(); })();
 setInterval(() => { loadReceipt(); loadStream(); }, 15000);
