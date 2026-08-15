@@ -138,6 +138,34 @@
   .bv-node text { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
   .bv-node:hover text { fill: var(--accent); }
   .bv-sat { fill: var(--accent); opacity: .45; }
+  .bv-node.sel circle.body { stroke-width: 2.4; fill: var(--accent-soft); }
+  .bv-node.sel text { fill: var(--accent); font-weight: 600; }
+
+  /* ---------- the readout below the map ---------- */
+  #readout { margin-top: 2px; }
+  .ro-label { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); font-weight: 600;
+    margin: 8px 0 10px; display: flex; align-items: baseline; gap: 12px; }
+  .ro-slug { color: var(--ink); }
+  .ro-back { margin-left: auto; color: var(--muted); cursor: pointer;
+    text-decoration: none; letter-spacing: 0.08em; }
+  .ro-back:hover { color: var(--accent); }
+  .ro-now { font-size: 1rem; line-height: 1.65; margin: 0 0 4px; max-width: 74ch;
+    color: color-mix(in srgb, var(--ink) 88%, var(--muted)); }
+  .ro-sub { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 16px 0 7px; }
+  .ro-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column;
+    gap: 7px; font-size: 0.93rem; line-height: 1.55; max-width: 78ch; }
+  .ro-list li::marker { color: var(--accent); }
+  .ro-list.warn li::marker { color: var(--warn); }
+  .ro-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ro-chip { font-family: var(--mono); font-size: 0.72rem; border: 1px solid var(--line);
+    background: var(--card); border-radius: 999px; padding: 4px 12px; cursor: pointer;
+    color: var(--ink); }
+  .ro-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .ro-full { display: inline-block; margin-top: 14px; font-family: var(--mono);
+    font-size: 0.74rem; color: var(--accent); text-decoration: none; }
+  .ro-hint { margin-top: 14px; font-size: 0.85rem; color: var(--muted); }
   .bv-halo { fill: none; stroke: var(--warn); stroke-width: 1; opacity: .55;
     animation: corepulse 2.2s ease-in-out infinite; }
   .hero .label { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em;
@@ -334,6 +362,7 @@
         <div id="hero-body">
           <div class="skeleton"><span class="pulse"></span> reading your memory…</div>
         </div>
+        <div id="readout"></div>
       </div>
     </section>
 
@@ -697,7 +726,6 @@ function renderBrief(data, ready) {
   BRIEF = data;
   const parts = [];
   if (data.headline) parts.push('<div class="headline">' + inlineMd(data.headline) + "</div>");
-  if (data.narrative) parts.push('<p class="narrative">' + inlineMd(data.narrative) + "</p>");
   if (!parts.length) parts.push('<p class="narrative">Fresh brain — it fills in as you work.</p>');
   if (!ready) parts.push('<div class="skeleton" style="margin-top:10px;font-size:0.8rem"><span class="pulse"></span> refreshing…</div>');
   $("#hero-body").innerHTML = parts.join("");
@@ -707,6 +735,83 @@ function renderBrief(data, ready) {
     fillRail("#left-off", data.left_off); fillRail("#wins", data.wins); fillRail("#watch", data.watch);
   }
 }
+// ------------------------------------------- the readout below the map
+let SEL = null, STATE_MEM = null;
+async function ensureState() {
+  if (STATE_MEM) return STATE_MEM;
+  let text = "";
+  try { text = (await (await fetch("/api/state")).json()).text || ""; } catch {}
+  const sec = {}; let cur = null;
+  for (const ln of text.split("\n")) {
+    const h = ln.match(/^## (.+)/);
+    if (h) { cur = h[1].trim().toLowerCase(); sec[cur] = []; continue; }
+    if (cur && ln.startsWith("- ")) sec[cur].push(ln.slice(2).trim());
+  }
+  const projects = [];
+  for (const b of (sec["active projects"] || [])) {
+    const m = b.match(/^\*\*(.+?)\*\*/);
+    if (m) projects.push({ name: m[1].replace(/\s*\(.*$/, "").trim().toLowerCase(), text: b });
+  }
+  STATE_MEM = { projects, conventions: sec["conventions"] || [], threads: sec["open threads"] || [] };
+  return STATE_MEM;
+}
+function memFor(slug) {
+  if (!STATE_MEM) return null;
+  const low = slug.toLowerCase();
+  let hit = STATE_MEM.projects.find(p => p.name === low || p.name.includes(low) || low.includes(p.name));
+  if (hit) return hit;
+  const toks = low.split("-").filter(w => w.length >= 4);
+  return STATE_MEM.projects.find(p => {
+    const pt = p.name.split("-");
+    return toks.filter(w => pt.includes(w)).length >= 2;
+  }) || null;
+}
+function renderReadout(slug) {
+  const el = $("#readout");
+  if (!el) return;
+  const mem = STATE_MEM || { projects: [], conventions: [], threads: [] };
+  if (!slug) {
+    let h = "";
+    if (mem.conventions.length) {
+      h += '<div class="ro-label">Rules it holds you to</div><ul class="ro-list">' +
+        mem.conventions.slice(0, 5).map(c => "<li>" + inlineMd(c) + "</li>").join("") + "</ul>";
+    } else if (BRIEF && BRIEF.narrative) {
+      h += '<p class="ro-now">' + inlineMd(BRIEF.narrative) + "</p>";
+    }
+    if (SLUGS.length) h += '<div class="ro-hint">Click a project on the map — see exactly what it remembers.</div>';
+    el.innerHTML = h;
+    return;
+  }
+  const low = slug.toLowerCase();
+  const p = memFor(slug);
+  const toks = low.split("-").filter(w => w.length >= 4);
+  const threads = mem.threads.filter(t => {
+    const tl = t.toLowerCase();
+    return tl.includes(low) || toks.some(w => tl.includes(w));
+  });
+  const ses = NOTES.filter(n => ((n.title || "") + " " + n.name).toLowerCase().split(/\s+/)
+    .some(w => toks.includes(w) || w.includes(low))).slice(0, 3);
+  let h = '<div class="ro-label"><span class="ro-slug">' + esc(slug) + '</span> · what it remembers' +
+    '<a class="ro-back" id="ro-back">← workspace</a></div>';
+  if (p) h += '<p class="ro-now">' + inlineMd(p.text.replace(/^\*\*.+?\*\*(\s*\([^)]*\))?:?\s*/, "")) + "</p>";
+  else h += '<p class="ro-now" style="color:var(--muted)">Not in the current briefing — open the full note for its history.</p>';
+  if (threads.length) h += '<div class="ro-sub">Loose ends it’s tracking</div><ul class="ro-list warn">' +
+    threads.slice(0, 4).map(t => "<li>" + inlineMd(t) + "</li>").join("") + "</ul>";
+  if (ses.length) h += '<div class="ro-sub">From these sessions</div><div class="ro-chips">' +
+    ses.map(n => '<button class="ro-chip" data-note="' + esc(n.name) + '">' + esc(n.title || n.name) + "</button>").join("") + "</div>";
+  h += '<a class="ro-full" href="#project/' + encodeURIComponent(slug) + '">Open the full note →</a>';
+  el.innerHTML = h;
+  const back = $("#ro-back");
+  if (back) back.addEventListener("click", () => selectNode(null));
+  el.querySelectorAll(".ro-chip").forEach(b =>
+    b.addEventListener("click", () => nav("note/" + encodeURIComponent(b.dataset.note))));
+}
+function selectNode(slug) {
+  SEL = (slug && SEL !== slug) ? slug : null;
+  document.querySelectorAll(".bv-node").forEach(n => n.classList.toggle("sel", n.dataset.slug === SEL));
+  renderReadout(SEL);
+}
+
 function buildBrain() {
   const el = $("#brainviz");
   if (!el || !SLUGS.length) { if (el) el.innerHTML = ""; return; }
@@ -749,18 +854,26 @@ function buildBrain() {
   });
   svg += "</svg>";
   el.innerHTML = svg;
-  el.querySelectorAll(".bv-node").forEach(n =>
-    n.addEventListener("click", () => nav("project/" + encodeURIComponent(n.dataset.slug))));
+  el.querySelectorAll(".bv-node").forEach(n => {
+    n.classList.toggle("sel", n.dataset.slug === SEL);
+    n.addEventListener("click", () => selectNode(n.dataset.slug));
+  });
 }
 
 let briefTries = 0;
 async function loadBrief() {
   await ensureTopics();
+  if (!SEL) {
+    const f = new URLSearchParams(location.search).get("focus");
+    if (f && SLUGS.some(s => s.slug === f)) SEL = f;
+  }
   let d;
   try { d = await (await fetch("/api/briefing")).json(); } catch { d = {}; }
   await ensureNotes();
   if (d.data) renderBrief(d.data, !!d.ready);
   buildBrain();
+  await ensureState();
+  renderReadout(SEL);
   if (!d.ready && briefTries++ < 60) setTimeout(loadBrief, 2500);
   else if (!d.ready && !d.data) $("#hero-body").innerHTML = '<p class="narrative">Nothing compiled yet — this fills in as you work.</p>';
 }
