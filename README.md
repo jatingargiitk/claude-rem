@@ -225,10 +225,30 @@ evals.json        # your blind-eval question set
 .git/             # one commit per harvest
 ```
 
-Most memory tools are diaries: append forever, search the pile, recall
-degrades as it grows. That is storage, not remembering. claude-rem rewrites
-its briefing in place, the same consolidation bet OpenAI, Anthropic, and
-Google all made this year. A bigger pile is not a better memory.
+---
+
+## Why Now
+
+Every serious bet on the next phase of computing lands in the same place:
+the assistant that wins is the one with the most memory and context about
+you. Your agent transcripts are the richest record of your work that
+exists, and today they evaporate when the session ends. claude-rem keeps
+that record compiled on your machine, working for you instead of for any
+one platform.
+
+Three things a memory needs at scale, built in from day one:
+
+- **Provenance.** Every fact traces back to a session digest and a git
+  commit. The store itself is a git history, so nothing is ever silently
+  overwritten and anything wrong is one revert away.
+- **Conflict management, not accumulation.** Most memory tools are
+  diaries: append forever, search the pile, recall degrades as it grows.
+  That is storage, not remembering. claude-rem rewrites its briefing in
+  place every harvest, the same consolidation bet OpenAI, Anthropic, and
+  Google all made this year. A bigger pile is not a better memory.
+- **Corrections that stick.** Correct your agent once and it becomes a
+  rule every future session obeys, in every tool. Your feedback compounds
+  instead of repeating.
 
 ---
 
