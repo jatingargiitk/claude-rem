@@ -479,10 +479,13 @@ def api_feed(limit: int = 30) -> dict:
 
 
 def api_search(q: str) -> dict:
-    """Proxy to search.sh — the same pull retrieval the agents use."""
+    """Proxy to search.sh — the same pull retrieval the agents use.
+
+    Returns the raw text plus structured, navigable results parsed from it,
+    so the UI can render clickable citation cards instead of a grep dump."""
     words = [w for w in q.split() if w][:6]
     if not words:
-        return {"text": ""}
+        return {"text": "", "results": []}
     script = HERE / "search.sh"
     env = dict(os.environ, BRAIN_DIR=str(BRAIN))
     try:
@@ -491,7 +494,25 @@ def api_search(q: str) -> dict:
             text=True, timeout=15, env=env, stderr=subprocess.STDOUT)
     except Exception as e:
         out = f"(search failed: {e})"
-    return {"text": out}
+    results = []
+    cur = None
+    for line in out.splitlines():
+        m = re.match(r"^── (.+?)\s+\(words", line)
+        if m:
+            p = Path(m.group(1))
+            kind = "note"
+            if "/topics/" in m.group(1):
+                kind = "project"
+            elif p.name == "STATE.md":
+                kind = "briefing"
+            cur = {"kind": kind, "name": p.name, "title": _note_title(p) if p.is_file() else p.stem,
+                   "age": _age_label(_mtime(p)), "lines": []}
+            results.append(cur)
+            continue
+        m = re.match(r"^\s+(\d+):[-–]?\s?(.*)$", line)
+        if m and cur is not None and len(cur["lines"]) < 4:
+            cur["lines"].append(m.group(2).strip())
+    return {"text": out, "results": results}
 
 
 def api_digest(name: str) -> dict:
@@ -576,6 +597,28 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/digest/"):
             name = path[len("/api/digest/"):]
             return self._json(200, api_digest(name))
+
+        if path.startswith("/api/project/"):
+            slug = Path(path[len("/api/project/"):]).name.replace(".md", "")
+            if not re.match(r"^[\w.\-]+$", slug):
+                return self._json(200, {"error": "bad name"})
+            tp = TOPICS / f"{slug}.md"
+            topic_text = _read(tp) if tp.is_file() else ""
+            toks = [w for w in slug.lower().replace("_", "-").split("-") if len(w) >= 4]
+            state = _unfence(_read(BRAIN / "STATE.md"))
+            threads = [th for th in _open_threads(state)
+                       if any(w in th.lower() for w in toks + [slug.lower()])]
+            sessions = []
+            if SESSIONS.is_dir():
+                for p in sorted(SESSIONS.glob("*.md"), key=lambda x: x.stat().st_mtime, reverse=True):
+                    hay = (p.name + " " + _read(p, 4000)).lower()
+                    if any(w in hay for w in toks + [slug.lower()]):
+                        sessions.append({"name": p.name, "title": _note_title(p),
+                                         "age": _age_label(_mtime(p))})
+                    if len(sessions) >= 10:
+                        break
+            return self._json(200, {"slug": slug, "topic": topic_text,
+                                    "threads": threads[:8], "sessions": sessions})
 
         if path == "/api/topics":
             items = []

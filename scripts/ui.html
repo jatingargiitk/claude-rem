@@ -193,14 +193,69 @@
     max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .empty { color: var(--muted); padding: 22px 0; font-style: italic; }
 
-  /* ---------- note overlay ---------- */
+  /* ---------- reading sheet (right slide-over) ---------- */
   .overlay { position: fixed; inset: 0; display: none; z-index: 100;
-    background: rgba(5,5,10,.62); backdrop-filter: blur(6px);
-    align-items: flex-start; justify-content: center; padding: 5vh 18px; }
+    background: rgba(5,5,10,.45); backdrop-filter: blur(3px);
+    align-items: stretch; justify-content: flex-end; padding: 0; }
   .overlay.open { display: flex; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px;
-    box-shadow: 0 32px 90px rgba(0,0,0,.55); width: min(820px, 100%);
-    max-height: 88vh; display: flex; flex-direction: column; }
+  .panel { background: var(--card); border-left: 1px solid var(--line); border-radius: 0;
+    box-shadow: -24px 0 80px rgba(0,0,0,.45); width: min(760px, 94vw);
+    max-height: 100vh; display: flex; flex-direction: column;
+    animation: slidein .16s ease-out; }
+  @keyframes slidein { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+  .phead .navbtn { appearance: none; border: 0; background: var(--bg-2); color: var(--muted);
+    width: 26px; height: 26px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; }
+  .phead .navbtn:hover { color: var(--accent); }
+  .phead .navbtn[disabled] { opacity: .3; cursor: default; }
+
+  /* search citation cards */
+  .scard { border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px;
+    margin: 12px 0; cursor: pointer; }
+  .scard:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .scard .sk { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); }
+  .scard .st { font-weight: 650; margin: 3px 0 6px; }
+  .scard .sl { font-family: var(--mono); font-size: 0.74rem; color: var(--muted);
+    line-height: 1.65; overflow-wrap: break-word; }
+  .scard .sage { float: right; color: var(--muted); font-size: 0.7rem; font-family: var(--mono); }
+
+  /* project page sections */
+  .psec { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 26px 0 8px; font-weight: 600; }
+  .pthreads { list-style: none; margin: 0; padding: 0; }
+  .pthreads li { padding: 7px 0 7px 14px; border-left: 2px solid var(--warn);
+    margin: 6px 0; font-size: 0.88rem; }
+
+  /* timeline date headers */
+  .tdate { position: relative; font-family: var(--mono); font-size: 0.66rem;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    margin: 18px 0 6px -26px; }
+  .chip.link { cursor: pointer; }
+  .chip.link:hover { background: var(--accent); color: var(--accent-ink); }
+  .more-btn { all: unset; cursor: pointer; font-family: var(--mono); font-size: 0.7rem;
+    color: var(--accent); padding: 6px 0 0; }
+  .more-btn:hover { text-decoration: underline; }
+
+  /* ---------- command palette ---------- */
+  .cmdk { position: fixed; inset: 0; display: none; z-index: 200;
+    background: rgba(5,5,10,.5); backdrop-filter: blur(4px);
+    align-items: flex-start; justify-content: center; padding-top: 14vh; }
+  .cmdk.open { display: flex; }
+  .cmdk .box { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: 0 30px 90px rgba(0,0,0,.5); width: min(600px, 92vw); overflow: hidden; }
+  .cmdk input { width: 100%; padding: 16px 20px; border: 0; outline: none;
+    background: transparent; color: var(--ink); font: inherit; font-size: 1.02rem;
+    border-bottom: 1px solid var(--line); }
+  .cmdk .rows { max-height: 46vh; overflow: auto; padding: 8px; }
+  .cmdk .grp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); padding: 10px 12px 4px; }
+  .cmdk .row { display: flex; align-items: baseline; gap: 10px; padding: 9px 12px;
+    border-radius: 10px; cursor: pointer; }
+  .cmdk .row.sel, .cmdk .row:hover { background: var(--accent-soft); }
+  .cmdk .row .rt { font-weight: 550; }
+  .cmdk .row .ra { margin-left: auto; color: var(--muted); font-size: 0.7rem; font-family: var(--mono); }
+  .cmdk .hint { padding: 8px 14px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 0.64rem; color: var(--muted); }
   .panel .phead { display: flex; align-items: baseline; gap: 12px; padding: 18px 24px;
     border-bottom: 1px solid var(--line); }
   .panel .phead .pt { font-weight: 750; letter-spacing: -0.01em; }
@@ -245,10 +300,6 @@
     <div class="askwrap">
       <input id="q" placeholder="Ask your brain — how did we fix X · which port · why did we choose Y" autocomplete="off" />
       <button class="go" id="q-go" title="Search">→</button>
-      <div class="askpanel" id="results">
-        <button class="clear" id="q-clear" title="Dismiss">×</button>
-        <pre id="q-out"></pre>
-      </div>
     </div>
     <div class="clock" id="clock">—</div>
   </header>
@@ -289,11 +340,22 @@
   </main>
 </div>
 
+<div class="cmdk" id="cmdk">
+  <div class="box">
+    <input id="ck-q" placeholder="Jump to a project or note, or search your memory…" autocomplete="off" />
+    <div class="rows" id="ck-rows"></div>
+    <div class="hint">↑↓ navigate · ↵ open · esc close · ⌘K anywhere</div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay">
   <div class="panel">
     <div class="phead">
+      <button class="navbtn" id="p-back" title="Back">‹</button>
       <span class="pt" id="p-title"></span>
       <span class="page" id="p-age"></span>
+      <button class="navbtn" id="p-prev" title="Previous">◂</button>
+      <button class="navbtn" id="p-next" title="Next">▸</button>
       <button class="x" id="p-close" title="Close">×</button>
     </div>
     <div class="pbody"><div class="md" id="p-body"></div></div>
@@ -309,7 +371,6 @@ const inlineMd = (s) => esc(s)
   .replace(/`([^`]+)`/g, '<code>$1</code>')
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-// ------------------------------------------------ tiny markdown renderer
 function mdRender(src) {
   src = String(src ?? "").trim();
   const wrap = src.match(/^```[a-zA-Z]*\n([\s\S]*?)\n?```$/);
@@ -383,34 +444,200 @@ function mdRender(src) {
   return out.join("\n");
 }
 
-// ---------------------------------------------------------------- overlay
+// ---------------------------------------------------------------- caches
+let TOPICS = [], NOTES = [], BRIEF = null, SLUGS = [];
+async function ensureTopics() {
+  if (TOPICS.length) return TOPICS;
+  const d = await (await fetch("/api/topics")).json();
+  TOPICS = d.topics || [];
+  SLUGS = TOPICS.map(t => ({ slug: t.name.replace(/\.md$/, ""), title: t.title,
+    toks: t.name.replace(/\.md$/, "").toLowerCase().split("-").filter(w => w.length >= 4) }));
+  return TOPICS;
+}
+async function ensureNotes() {
+  if (NOTES.length) return NOTES;
+  const d = await (await fetch("/api/digests")).json();
+  NOTES = d.digests || [];
+  return NOTES;
+}
+function projectFor(text) {
+  const low = String(text).toLowerCase();
+  for (const s of SLUGS) if (low.includes(s.slug) || s.toks.some(w => low.includes(w))) return s;
+  return null;
+}
+const prettySlug = (s) => s.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
-function openPanel(title, age, text) {
+// ---------------------------------------------------------------- router
+function nav(h) { if (("#" + h) === location.hash || (!h && !location.hash)) route(); else location.hash = h; }
+function route() {
+  const raw = location.hash.replace(/^#/, "");
+  if (!raw) { $("#overlay").classList.remove("open"); return; }
+  const i = raw.indexOf("/");
+  const kind = i < 0 ? raw : raw.slice(0, i);
+  const arg = decodeURIComponent(i < 0 ? "" : raw.slice(i + 1));
+  if (kind === "note") showNote(arg);
+  else if (kind === "project") showProject(arg);
+  else if (kind === "search") showSearch(arg);
+  else if (kind === "list") showList(arg);
+  else $("#overlay").classList.remove("open");
+}
+window.addEventListener("hashchange", route);
+
+// ---------------------------------------------------------------- panel
+let ctx = { list: [], i: -1 };
+function setCtx(list, i) { ctx = { list: list || [], i: i ?? -1 }; syncNav(); }
+function syncNav() {
+  $("#p-prev").disabled = !(ctx.i > 0);
+  $("#p-next").disabled = !(ctx.i >= 0 && ctx.i < ctx.list.length - 1);
+}
+function panelShow(title, age, html) {
   $("#p-title").textContent = title;
   $("#p-age").textContent = age || "";
-  $("#p-body").innerHTML = mdRender(text);
+  $("#p-body").innerHTML = html;
   $("#overlay").classList.add("open");
   $("#overlay .pbody").scrollTop = 0;
+  syncNav();
 }
-$("#p-close").addEventListener("click", () => $("#overlay").classList.remove("open"));
-$("#overlay").addEventListener("click", (e) => {
-  if (e.target === $("#overlay")) $("#overlay").classList.remove("open");
+$("#p-close").addEventListener("click", () => nav(""));
+$("#overlay").addEventListener("click", (e) => { if (e.target === $("#overlay")) nav(""); });
+$("#p-back").addEventListener("click", () => history.back());
+$("#p-prev").addEventListener("click", () => { if (ctx.i > 0) { ctx.i--; nav(ctx.list[ctx.i].hash); } });
+$("#p-next").addEventListener("click", () => { if (ctx.i < ctx.list.length - 1) { ctx.i++; nav(ctx.list[ctx.i].hash); } });
+
+// ---------------------------------------------------------------- views
+async function showNote(name) {
+  let title = name.replace(/\.md$/, ""), age = "", text = "";
+  if (name === "STATE.md") {
+    const d = await (await fetch("/api/state")).json();
+    title = "Workspace briefing"; age = d.age || ""; text = d.text || "";
+  } else {
+    let d = await (await fetch("/api/digest/" + encodeURIComponent(name))).json();
+    if (d.error) d = await (await fetch("/api/topic/" + encodeURIComponent(name))).json();
+    if (d.error) { panelShow(name, "", '<p class="empty">' + esc(d.error) + "</p>"); return; }
+    const cached = NOTES.find(n => n.name === name);
+    title = (cached && cached.title) || title; age = d.age || ""; text = d.text || "";
+  }
+  panelShow(title, age, '<div class="md">' + mdRender(text) + "</div>");
+}
+
+async function showProject(slug) {
+  const d = await (await fetch("/api/project/" + encodeURIComponent(slug))).json();
+  if (d.error) { panelShow(slug, "", '<p class="empty">' + esc(d.error) + "</p>"); return; }
+  await ensureTopics();
+  const meta = SLUGS.find(s => s.slug === slug);
+  let html = "";
+  if (d.threads && d.threads.length) {
+    html += '<div class="psec">Open threads</div><ul class="pthreads">' +
+      d.threads.map(th => "<li>" + inlineMd(th) + "</li>").join("") + "</ul>";
+  }
+  if (d.topic) html += '<div class="psec">Project note</div><div class="md">' + mdRender(d.topic) + "</div>";
+  else html += '<p class="empty">No compiled note for this project yet.</p>';
+  if (d.sessions && d.sessions.length) {
+    html += '<div class="psec">Recent sessions</div><ul class="plist">' +
+      d.sessions.map((s, i) => '<li><button data-i="' + i + '"><span class="nm">' + esc(s.title || s.name) +
+        '</span><span class="ag">' + esc(s.age || "") + "</span></button></li>").join("") + "</ul>";
+  }
+  panelShow((meta && meta.title) || prettySlug(slug), (d.sessions || []).length + " sessions", html);
+  const list = (d.sessions || []).map(s => ({ hash: "note/" + encodeURIComponent(s.name), title: s.title }));
+  document.querySelectorAll("#p-body .plist button").forEach(b =>
+    b.addEventListener("click", () => { const i = Number(b.dataset.i); setCtx(list, i); nav(list[i].hash); }));
+}
+
+async function showSearch(q) {
+  panelShow("Search", "“" + q + "”", '<p class="empty">searching…</p>');
+  const d = await (await fetch("/api/search?q=" + encodeURIComponent(q))).json();
+  const rs = d.results || [];
+  if (!rs.length) { panelShow("Search", "“" + q + "”", '<p class="empty">No matches. Try broader words.</p>'); return; }
+  const list = rs.map(r => ({
+    hash: r.kind === "project" ? "project/" + encodeURIComponent(r.name.replace(/\.md$/, ""))
+        : "note/" + encodeURIComponent(r.kind === "briefing" ? "STATE.md" : r.name),
+    title: r.title }));
+  const html = rs.map((r, i) =>
+    '<div class="scard" data-i="' + i + '">' +
+      '<span class="sage">' + esc(r.age || "") + '</span>' +
+      '<div class="sk">' + (r.kind === "project" ? "project" : r.kind === "briefing" ? "briefing" : "session note") + '</div>' +
+      '<div class="st">' + esc(r.title || r.name) + '</div>' +
+      '<div class="sl">' + (r.lines || []).map(l => esc(l)).join("<br>") + '</div>' +
+    '</div>').join("");
+  panelShow("Search", rs.length + " results · “" + q + "”", html);
+  document.querySelectorAll("#p-body .scard").forEach(el =>
+    el.addEventListener("click", () => { const i = Number(el.dataset.i); setCtx(list, i); nav(list[i].hash); }));
+}
+
+async function showList(which) {
+  const items = which === "projects" ? await ensureTopics() : await ensureNotes();
+  const list = items.map(it => ({
+    hash: which === "projects" ? "project/" + encodeURIComponent(it.name.replace(/\.md$/, ""))
+                               : "note/" + encodeURIComponent(it.name),
+    title: it.title }));
+  const html = '<ul class="plist">' + items.map((it, i) =>
+    '<li><button data-i="' + i + '"><span class="nm">' + esc(it.title || it.name) +
+    '</span><span class="ag">' + esc(it.age || "") + "</span></button></li>").join("") + "</ul>";
+  panelShow(which === "projects" ? "Projects" : "Session notes", items.length + " total", html);
+  document.querySelectorAll("#p-body .plist button").forEach(b =>
+    b.addEventListener("click", () => { const i = Number(b.dataset.i); setCtx(list, i); nav(list[i].hash); }));
+}
+
+// ---------------------------------------------------------------- palette
+let ckSel = 0, ckRows = [];
+function ckOpen() { $("#cmdk").classList.add("open"); $("#ck-q").value = ""; ckRender(""); $("#ck-q").focus(); }
+function ckClose() { $("#cmdk").classList.remove("open"); }
+async function ckRender(q) {
+  await ensureTopics(); await ensureNotes();
+  const low = q.toLowerCase();
+  const hit = (s) => !low || String(s || "").toLowerCase().includes(low);
+  ckRows = [];
+  if (low) ckRows.push({ grp: "Actions", title: "Search memory for “" + q + "”", hash: "search/" + encodeURIComponent(q) });
+  for (const t of TOPICS) if (hit(t.title) || hit(t.name))
+    ckRows.push({ grp: "Projects", title: t.title || t.name, age: t.age, hash: "project/" + encodeURIComponent(t.name.replace(/\.md$/, "")) });
+  let n = 0;
+  for (const d of NOTES) {
+    if (n >= 8) break;
+    if (hit(d.title) || hit(d.name)) { n++;
+      ckRows.push({ grp: "Notes", title: d.title || d.name, age: d.age, hash: "note/" + encodeURIComponent(d.name) }); }
+  }
+  ckSel = 0;
+  let lastGrp = "", html = "";
+  ckRows.forEach((r, i) => {
+    if (r.grp !== lastGrp) { html += '<div class="grp">' + r.grp + "</div>"; lastGrp = r.grp; }
+    html += '<div class="row' + (i === 0 ? " sel" : "") + '" data-i="' + i + '"><span class="rt">' + esc(r.title) +
+      '</span><span class="ra">' + esc(r.age || "") + "</span></div>";
+  });
+  $("#ck-rows").innerHTML = html || '<div class="grp">nothing matches</div>';
+  document.querySelectorAll("#ck-rows .row").forEach(el =>
+    el.addEventListener("click", () => ckChoose(Number(el.dataset.i))));
+}
+function ckChoose(i) { const r = ckRows[i]; if (!r) return; ckClose(); nav(r.hash); }
+function ckMove(d) {
+  if (!ckRows.length) return;
+  ckSel = Math.max(0, Math.min(ckRows.length - 1, ckSel + d));
+  document.querySelectorAll("#ck-rows .row").forEach((el, i) => el.classList.toggle("sel", i === ckSel));
+  const el = document.querySelectorAll("#ck-rows .row")[ckSel];
+  if (el) el.scrollIntoView({ block: "nearest" });
+}
+$("#ck-q").addEventListener("input", (e) => ckRender(e.target.value.trim()));
+$("#ck-q").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") { e.preventDefault(); ckMove(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); ckMove(-1); }
+  else if (e.key === "Enter") ckChoose(ckSel);
 });
+$("#cmdk").addEventListener("click", (e) => { if (e.target === $("#cmdk")) ckClose(); });
+
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") $("#overlay").classList.remove("open");
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault();
+    if ($("#cmdk").classList.contains("open")) ckClose(); else ckOpen(); return; }
+  if (e.key === "Escape") {
+    if ($("#cmdk").classList.contains("open")) ckClose();
+    else if ($("#overlay").classList.contains("open")) nav("");
+  }
 });
 
-async function openDigest(name, title) {
-  const d = await (await fetch("/api/digest/" + encodeURIComponent(name))).json();
-  openPanel(title || name, d.age, d.error ? "(" + d.error + ")" : d.text);
-}
-async function openTopic(name, title) {
-  const d = await (await fetch("/api/topic/" + encodeURIComponent(name))).json();
-  openPanel(title || name, d.age, d.error ? "(" + d.error + ")" : d.text);
-}
+// ---------------------------------------------------------------- topbar
+const goSearch = () => { const q = $("#q").value.trim(); if (q) nav("search/" + encodeURIComponent(q)); };
+$("#q-go").addEventListener("click", goSearch);
+$("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") goSearch(); });
 
-// ------------------------------------------------------- header + sidebar
-
+// ---------------------------------------------------------------- sidebar
 async function loadReceipt() {
   const d = await (await fetch("/api/overview")).json();
   $("#clock").textContent = "updated " + d.now;
@@ -420,88 +647,77 @@ async function loadReceipt() {
   $("#st-notes").textContent = c.digests ?? "–";
   $("#st-sessions").textContent = c.harvested ?? "–";
 }
-
 async function loadTopics() {
-  const d = await (await fetch("/api/topics")).json();
+  await ensureTopics();
   const box = $("#topics");
-  if (!d.topics || !d.topics.length) return;
-  box.innerHTML = d.topics.map(t => `
-    <button data-name="${esc(t.name)}" data-title="${esc(t.title)}">
-      <span class="dot">●</span><span class="nm">${esc(t.title || t.name.replace(/\.md$/, ""))}</span>
-    </button>`).join("");
+  if (!TOPICS.length) return;
+  box.innerHTML = TOPICS.map(t =>
+    '<button data-slug="' + esc(t.name.replace(/\.md$/, "")) + '">' +
+      '<span class="dot">●</span><span class="nm">' + esc(t.title || t.name.replace(/\.md$/, "")) + "</span>" +
+    "</button>").join("");
   box.querySelectorAll("button").forEach(b =>
-    b.addEventListener("click", () => openTopic(b.dataset.name, b.dataset.title)));
+    b.addEventListener("click", () => nav("project/" + encodeURIComponent(b.dataset.slug))));
 }
+$("#stat-topics").addEventListener("click", () => nav("list/projects"));
+$("#stat-notes").addEventListener("click", () => nav("list/notes"));
+$("#stat-sessions").addEventListener("click", () => nav("list/notes"));
 
-// ----------------------------------------------------- the brain speaking
-
+// ------------------------------------------------------- briefing + rails
+function railItem(x) {
+  const p = projectFor(x);
+  const chip = p ? ' <button class="chip link" data-slug="' + esc(p.slug) + '">' + esc(p.slug) + "</button>" : "";
+  return "<li>" + inlineMd(x) + chip + "</li>";
+}
+function wireChips(scope) {
+  scope.querySelectorAll(".chip.link").forEach(c =>
+    c.addEventListener("click", (e) => { e.stopPropagation(); nav("project/" + encodeURIComponent(c.dataset.slug)); }));
+}
+function fillRail(id, items) {
+  const ul = $(id);
+  if (!items || !items.length) { ul.innerHTML = '<li class="none">nothing yet</li>'; return; }
+  const head = items.slice(0, 3), rest = items.slice(3);
+  ul.innerHTML = head.map(railItem).join("") +
+    (rest.length ? '<li><button class="more-btn">+ ' + rest.length + " more</button></li>" : "");
+  const btn = ul.querySelector(".more-btn");
+  if (btn) btn.addEventListener("click", () => { ul.innerHTML = items.map(railItem).join(""); wireChips(ul); });
+  wireChips(ul);
+}
 function renderBrief(data, ready) {
   if (!data) return;
+  BRIEF = data;
   const parts = [];
-  if (data.headline) parts.push(`<div class="headline">${inlineMd(data.headline)}</div>`);
-  if (data.narrative) parts.push(`<p class="narrative">${inlineMd(data.narrative)}</p>`);
-  if (!parts.length) parts.push(`<p class="narrative">Fresh brain — it fills in as you work.</p>`);
-  if (!ready) parts.push(`<div class="skeleton" style="margin-top:10px;font-size:0.8rem"><span class="pulse"></span> refreshing…</div>`);
+  if (data.headline) parts.push('<div class="headline">' + inlineMd(data.headline) + "</div>");
+  if (data.narrative) parts.push('<p class="narrative">' + inlineMd(data.narrative) + "</p>");
+  if (!parts.length) parts.push('<p class="narrative">Fresh brain — it fills in as you work.</p>');
+  if (!ready) parts.push('<div class="skeleton" style="margin-top:10px;font-size:0.8rem"><span class="pulse"></span> refreshing…</div>');
   $("#hero-body").innerHTML = parts.join("");
-  const fill = (id, items) => {
-    $(id).innerHTML = (items && items.length)
-      ? items.map(x => `<li>${inlineMd(x)}</li>`).join("")
-      : `<li class="none">nothing yet</li>`;
-  };
   const any = ["left_off", "wins", "watch"].some(k => (data[k] || []).length);
   $("#trio").style.display = any ? "" : "none";
-  if (any) { fill("#left-off", data.left_off); fill("#wins", data.wins); fill("#watch", data.watch); }
+  if (any) { fillRail("#left-off", data.left_off); fillRail("#wins", data.wins); fillRail("#watch", data.watch); }
 }
-
 let briefTries = 0;
 async function loadBrief() {
+  await ensureTopics();
   let d;
   try { d = await (await fetch("/api/briefing")).json(); } catch { d = {}; }
   if (d.data) renderBrief(d.data, !!d.ready);
   if (!d.ready && briefTries++ < 60) setTimeout(loadBrief, 2500);
-  else if (!d.ready && !d.data) {
-    $("#hero-body").innerHTML = `<p class="narrative">Nothing compiled yet — this fills in as you work.</p>`;
-  }
+  else if (!d.ready && !d.data) $("#hero-body").innerHTML = '<p class="narrative">Nothing compiled yet — this fills in as you work.</p>';
 }
 
-// ----------------------------------------------------------------- search
-
-const go = async () => {
-  const q = $("#q").value.trim();
-  if (!q) return;
-  $("#results").style.display = "block";
-  $("#q-out").textContent = "searching…";
-  const d = await (await fetch("/api/search?q=" + encodeURIComponent(q))).json();
-  $("#q-out").textContent = d.text || "(no output)";
-};
-$("#q-go").addEventListener("click", go);
-$("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
-$("#q-clear").addEventListener("click", () => {
-  $("#results").style.display = "none";
-  $("#q-out").textContent = "";
-});
-document.addEventListener("click", (e) => {
-  if (!e.target.closest(".askwrap")) $("#results").style.display = "none";
-});
-
-// ------------------------------------------------------------- learn feed
-
+// ------------------------------------------------------------- timeline
 function subjectLabel(s) {
   if (s.startsWith("harvest: ")) s = s.slice(9);
   else if (s.startsWith("init: lite STATE") || s.startsWith("init: brain compiled")) return "starter briefing";
   else if (s.startsWith("baseline:")) return "set up";
   return s;
 }
-
-function chipLabel(f) {
-  if (f.startsWith("sessions/")) return "note";
-  if (f.startsWith("topics/")) return "topic: " + f.slice(7).replace(/\.md$/, "");
-  if (f === "STATE.md") return "briefing updated";
-  if (f === "RULES.md") return "rules updated";
-  if (f === "NOTES.md") return "notes";
-  return f;
+function chipInfo(f) {
+  if (f.startsWith("topics/")) { const s = f.slice(7).replace(/\.md$/, ""); return { label: s, slug: s }; }
+  if (f === "RULES.md") return { label: "rules updated" };
+  if (f === "NOTES.md") return { label: "notes" };
+  return null;
 }
-
 function entryTitle(e) {
   let t = e.title || subjectLabel(e.subject || "");
   if (!t || t.startsWith("```")) {
@@ -510,68 +726,53 @@ function entryTitle(e) {
   }
   return t;
 }
-
+function dateLabel(ts) {
+  const d = new Date(ts * 1000), now = new Date();
+  const day = (x) => x.toDateString();
+  if (day(d) === day(now)) return "Today";
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  if (day(d) === day(y)) return "Yesterday";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 async function loadStream() {
   const d = await (await fetch("/api/feed")).json();
   const feed = $("#feed");
   if (!d.entries || !d.entries.length) {
-    feed.innerHTML = `<div class="empty">${esc(d.error || "Nothing learned yet — this fills in as you work.")}</div>`;
+    feed.innerHTML = '<div class="empty">' + esc(d.error || "Nothing learned yet — this fills in as you work.") + "</div>";
     return;
   }
-  feed.innerHTML = `<div class="feedgrid">` + d.entries.map((e, i) => {
-    const chips = (e.files || []).filter(f => f !== "STATE.md").map(chipLabel)
-      .filter((v, idx, a) => a.indexOf(v) === idx);
-    const shown = chips.slice(0, 4);
-    const extra = chips.length - shown.length;
-    return `
-    <div class="feedcard card" data-i="${i}">
-      <div class="t">${esc(entryTitle(e))}</div>
-      <div class="when">${esc(e.age)}</div>
-      <div class="chips">${shown.map(c => `<span class="chip">${esc(c)}</span>`).join("")}
-        ${extra > 0 ? `<span class="chip">+${extra}</span>` : ""}</div>
-    </div>`;
-  }).join("") + `</div>`;
   const entries = d.entries;
+  const noteOf = (e) => { const f = (e.files || []).find(f => f.startsWith("sessions/")); return f ? f.slice(9) : null; };
+  const list = entries.filter(noteOf).map(e => ({ hash: "note/" + encodeURIComponent(noteOf(e)), title: entryTitle(e) }));
+  let lastDate = "", html = "";
+  entries.forEach((e, i) => {
+    const dl = dateLabel(e.ts);
+    if (dl !== lastDate) { html += '<div class="tdate">' + dl + "</div>"; lastDate = dl; }
+    const chips = (e.files || []).map(chipInfo).filter(Boolean)
+      .filter((v, idx, a) => a.findIndex(x => x.label === v.label) === idx).slice(0, 4);
+    html += '<div class="feedcard" data-i="' + i + '">' +
+      '<div class="t">' + esc(entryTitle(e)) + '</div>' +
+      '<div class="when">' + esc(e.age) + '</div>' +
+      '<div class="chips">' + chips.map(c => c.slug
+        ? '<button class="chip link" data-slug="' + esc(c.slug) + '">' + esc(c.label) + "</button>"
+        : '<span class="chip">' + esc(c.label) + "</span>").join("") + "</div>" +
+    "</div>";
+  });
+  feed.innerHTML = '<div class="feedgrid">' + html + "</div>";
   feed.querySelectorAll(".feedcard").forEach((el) => {
-    el.addEventListener("click", () => {
-      const e = entries[Number(el.dataset.i)];
-      const f = (e.files || []).find(f => f.startsWith("sessions/"));
-      if (f) openDigest(f.slice(9), entryTitle(e));
+    const e = entries[Number(el.dataset.i)];
+    const n = noteOf(e);
+    if (n) el.addEventListener("click", () => {
+      const i = list.findIndex(x => x.hash === "note/" + encodeURIComponent(n));
+      setCtx(list, i); nav(list[i].hash);
     });
   });
+  wireChips(feed);
 }
 
-// ------------------------------------------------ clickable stat drill-ins
-
-function openListPanel(title, items, onPick) {
-  $("#p-title").textContent = title;
-  $("#p-age").textContent = items.length + " total";
-  $("#p-body").innerHTML = '<ul class="plist">' + items.map((it, i) => `
-    <li><button data-i="${i}">
-      <span class="nm">${esc(it.title || it.name.replace(/\.md$/, ""))}</span>
-      <span class="ag">${esc(it.age || "")}</span>
-    </button></li>`).join("") + "</ul>";
-  $("#p-body").querySelectorAll("button").forEach((b) =>
-    b.addEventListener("click", () => onPick(items[Number(b.dataset.i)])));
-  $("#overlay").classList.add("open");
-  $("#overlay .pbody").scrollTop = 0;
-}
-
-$("#stat-topics").addEventListener("click", async () => {
-  const d = await (await fetch("/api/topics")).json();
-  openListPanel("Projects", d.topics || [], (it) => openTopic(it.name, it.title));
-});
-async function openNotesList() {
-  const d = await (await fetch("/api/digests")).json();
-  openListPanel("Session notes", d.digests || [], (it) => openDigest(it.name, it.title));
-}
-$("#stat-notes").addEventListener("click", openNotesList);
-$("#stat-sessions").addEventListener("click", openNotesList);
-
-(async () => { await loadReceipt(); loadBrief(); })();
-loadTopics();
-loadStream();
-setInterval(() => { loadReceipt(); loadStream(); loadTopics(); }, 15000);
+(async () => { await loadReceipt(); loadTopics(); loadBrief(); loadStream(); route(); })();
+setInterval(() => { loadReceipt(); loadStream(); }, 15000);
 </script>
+
 </body>
 </html>
