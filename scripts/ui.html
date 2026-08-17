@@ -66,6 +66,9 @@
   .sdot { width: 7px; height: 7px; border-radius: 999px; background: var(--win);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--win) 22%, transparent);
     animation: pulse 2.4s ease-in-out infinite; }
+  .status.stale { color: var(--warn); }
+  .status.stale .sdot { background: var(--warn); animation: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent); }
   .kbd { position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
     font-family: var(--mono); font-size: 0.66rem; color: var(--muted);
     border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 5px;
@@ -681,10 +684,13 @@ $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") goSearch(); 
 // ---------------------------------------------------------------- sidebar
 async function loadReceipt() {
   const d = await (await fetch("/api/overview")).json();
-  $("#clock").textContent = "updated " + d.now;
+  $("#clock").textContent = d.now;
   $("#receipt").textContent = d.receipt || "—";
-  const hm = (d.receipt || "").match(/harvest ([^)]+)\)/);
-  $("#status-text").textContent = hm ? "watching · harvest " + hm[1] : "watching";
+  const hm = (d.receipt || "").match(/(?:harvest|updated)\s+(\d+[mhd])\s*ago/);
+  const age = hm ? hm[1] + " ago" : "";
+  const stale = hm && (/d/.test(hm[1]) || (/h/.test(hm[1]) && parseInt(hm[1]) >= 24));
+  $("#status-text").textContent = hm ? (stale ? "stale · last save " + age : "watching · saved " + age) : "watching";
+  $("#status").classList.toggle("stale", !!stale);
   const c = d.counts || {};
   $("#st-topics").textContent = c.topics ?? "–";
   $("#st-notes").textContent = c.digests ?? "–";
