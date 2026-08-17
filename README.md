@@ -65,7 +65,7 @@ mattered, brief the next one.
 
 ---
 
-![claude-rem dashboard](docs/assets/dashboard.png)
+![claude-rem dashboard](https://jatingargiitk.github.io/claude-rem/assets/dashboard.png)
 
 ## Quick Start
 
