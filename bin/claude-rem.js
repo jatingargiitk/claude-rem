@@ -1130,27 +1130,35 @@ function cmdHarvest() {
   const stateDir = path.join(brain, '.state');
   const sessions = inventory(workspace);
   if (!sessions.length) die('no transcripts found for this workspace');
-  // Newest transcript with unharvested content (size beyond its offset).
-  let target = null;
+  // Every transcript with unharvested content (size beyond its offset),
+  // oldest first so the brain replays history in order. Capped per run so a
+  // huge backlog can't turn one command into an hour of model calls.
+  const CAP = 12;
+  const pending = [];
   for (const s of sessions) {
     const stem = path.basename(s.path, '.jsonl');
     let offset = 0;
     try { offset = parseInt(fs.readFileSync(path.join(stateDir, stem), 'utf8').trim(), 10) || 0; } catch { /* never harvested */ }
     let size = 0;
     try { size = fs.statSync(s.path).size; } catch { continue; }
-    if (size > offset) { target = s; break; }
+    if (size > offset) pending.push(s);
   }
-  if (!target) { console.log('Nothing to harvest — all transcripts already harvested.'); return; }
-  console.log(`Harvesting ${path.basename(target.path)} (${target.source}, project: ${target.project})...`);
-  const r = spawnSync('bash', [path.join(SCRIPTS, 'distill.sh'), target.path, workspace],
-    { stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, BRAIN_DIR: brain } });
-  if (r.status === 0) {
-    console.log('Harvest complete.');
-    const g = spawnSync('git', ['-C', brain, 'log', '--oneline', '-1'], { encoding: 'utf8' });
-    if (g.stdout) console.log('Latest brain commit: ' + g.stdout.trim());
-  } else {
-    die(`harvest failed (exit ${r.status}) — see ${path.join(stateDir, 'harvest.log')}`);
+  if (!pending.length) { console.log('Nothing to harvest — all transcripts already harvested.'); return; }
+  pending.sort((a, b) => a.mtime - b.mtime);
+  const batch = pending.slice(0, CAP);
+  console.log(`${pending.length} transcript(s) with unharvested content${pending.length > CAP ? ` — doing the oldest ${CAP} this run` : ''}.`);
+  let done = 0;
+  for (const target of batch) {
+    console.log(`Harvesting ${path.basename(target.path)} (${target.source}, project: ${target.project})...`);
+    const r = spawnSync('bash', [path.join(SCRIPTS, 'distill.sh'), target.path, workspace],
+      { stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, BRAIN_DIR: brain } });
+    if (r.status !== 0) die(`harvest failed (exit ${r.status}) — see ${path.join(stateDir, 'harvest.log')}`);
+    done += 1;
   }
+  console.log(`Harvest complete (${done} transcript(s)).`);
+  if (pending.length > CAP) console.log(`${pending.length - CAP} still pending — run \`claude-rem harvest\` again to continue.`);
+  const g = spawnSync('git', ['-C', brain, 'log', '--oneline', '-1'], { encoding: 'utf8' });
+  if (g.stdout) console.log('Latest brain commit: ' + g.stdout.trim());
 }
 
 function cmdUninstall(args) {

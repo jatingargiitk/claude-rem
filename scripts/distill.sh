@@ -399,6 +399,10 @@ for part in re.split(r'^FILE:[ \t]*', result, flags=re.M)[1:]:
     nl = part.find('\n')
     if nl < 0: continue
     rel, body = part[:nl].strip(), part[nl + 1:].strip()
+    # Models sometimes wrap a whole file in a ```markdown fence — unwrap it,
+    # or the fence line becomes the file's "title" everywhere downstream.
+    fm = re.fullmatch(r'```[A-Za-z]*\n([\s\S]*?)\n?```', body)
+    if fm: body = fm.group(1).strip()
     m = re.fullmatch(r'(sessions|topics)/([A-Za-z0-9][A-Za-z0-9._-]*\.md)', rel)
     if m:
         dst = os.path.join(brain, m.group(1), m.group(2))
