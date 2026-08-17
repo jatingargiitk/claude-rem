@@ -772,12 +772,15 @@ r=1
 [ "$(claude_calls)" -eq "$CALLS_BEFORE" ] && r=0
 check "codex-notify: recursion guard (CLAUDE_REM_HARVEST)" $r
 
-# Debounce: rollout below threshold must not spawn.
+# Debounce: rollout below threshold must not spawn. (init already marked the
+# rollout consumed at its compile-time size, so assert the offset is unchanged
+# rather than absent.)
+OFF_BEFORE=$(cat "$BRAIN/.state/$CODEX_STEM" 2>/dev/null || echo "")
 CLAUDE_REM_CODEX_DIR="$FAKEHOME/.codex" \
   bash "$SCRIPTS/codex-notify-hook.sh" '{"type":"agent-turn-complete"}'
 sleep 1
 r=1
-[ "$(claude_calls)" -eq "$CALLS_BEFORE" ] && [ ! -f "$BRAIN/.state/$CODEX_STEM" ] && r=0
+[ "$(claude_calls)" -eq "$CALLS_BEFORE" ] && [ "$(cat "$BRAIN/.state/$CODEX_STEM" 2>/dev/null || echo "")" = "$OFF_BEFORE" ] && r=0
 check "codex-notify: debounce below threshold (no spawn)" $r
 
 # Pad the rollout past the threshold and notify again (arg schema is opaque
@@ -793,9 +796,9 @@ with open(sys.argv[1], "a") as fh:
 PY
 CLAUDE_REM_CODEX_DIR="$FAKEHOME/.codex" \
   bash "$SCRIPTS/codex-notify-hook.sh" '{"type":"agent-turn-complete"}'
-wait_for 30 "[ -f '$BRAIN/.state/$CODEX_STEM' ]"
+wait_for 30 "[ \"\$(cat '$BRAIN/.state/$CODEX_STEM' 2>/dev/null)\" != '$OFF_BEFORE' ]"
 r=1
-[ -f "$BRAIN/.state/$CODEX_STEM" ] && [ "$(claude_calls)" -eq $((CALLS_BEFORE + 1)) ] && r=0
+[ "$(cat "$BRAIN/.state/$CODEX_STEM" 2>/dev/null)" != "$OFF_BEFORE" ] && [ "$(claude_calls)" -eq $((CALLS_BEFORE + 1)) ] && r=0
 check "codex-notify: recency scan + debounced spawn feeds the same brain" $r
 
 # ---------------------------------------- codex config.toml + AGENTS.md
