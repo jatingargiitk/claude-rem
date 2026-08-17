@@ -65,6 +65,8 @@ mattered, brief the next one.
 
 ---
 
+![claude-rem dashboard](docs/assets/dashboard.png)
+
 ## Quick Start
 
 ```bash
@@ -180,8 +182,6 @@ difference between storing your history and remembering it.
 ```bash
 npx claude-rem ui
 ```
-
-![claude-rem dashboard](https://raw.githubusercontent.com/jatingargiitk/claude-rem/main/docs/assets/dashboard.png)
 
 A local dashboard (127.0.0.1 only, no daemon; it runs while you look at it):
 
