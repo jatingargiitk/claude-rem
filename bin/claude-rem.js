@@ -990,6 +990,17 @@ async function cmdInit(args) {
       console.log(`Compiling your brain from ${n} session(s) - digests, project notes, and the briefing...`);
       const res = await fanoutCompile(brain, workspace, selected, cfg);
       if (res.digests > 0 && fs.existsSync(path.join(brain, 'STATE.md'))) {
+        // History is now consumed: mark every inventoried transcript's current
+        // size as its harvest offset, or `harvest` would treat the whole past
+        // as an unharvested backlog and re-digest it one session at a time.
+        const stDir = path.join(brain, '.state');
+        fs.mkdirSync(stDir, { recursive: true });
+        for (const s of sessions) {
+          try {
+            fs.writeFileSync(path.join(stDir, path.basename(s.path, '.jsonl')),
+              String(fs.statSync(s.path).size));
+          } catch { /* transcript vanished mid-init — fine */ }
+        }
         spawnSync('git', ['-C', brain, 'add', '-A'], { stdio: 'ignore' });
         spawnSync('git', ['-C', brain, '-c', 'user.name=claude-rem', '-c', 'user.email=claude-rem@local',
           'commit', '-qm', `init: brain compiled from ${n} sessions`], { stdio: 'ignore' });
