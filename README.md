@@ -175,16 +175,27 @@ what grep can never give you: the brain generalized each incident into a
 pattern and flagged the *other* service as unaudited for it. That is the
 difference between storing your history and remembering it.
 
-### The viewer
+### The dashboard
 
 ```bash
 npx claude-rem ui
 ```
 
-A local dashboard (127.0.0.1 only) that leads with the brain talking: a
-model-written headline of where your work stands, where you left off,
-recent wins, heads-up, plus search and the full feed. No daemon; it runs
-while you look at it.
+![claude-rem dashboard](https://raw.githubusercontent.com/jatingargiitk/claude-rem/main/docs/assets/dashboard.png)
+
+A local dashboard (127.0.0.1 only, no daemon; it runs while you look at it):
+
+- **Your brain, live**: an interactive map of your projects. Node size
+  tracks how much it knows; amber halos mark what the briefing is worried
+  about. Click any project to see exactly what it remembers, its loose
+  ends, and the sessions behind it.
+- **Where you left off / Recent wins / Heads up**: a model-written briefing
+  of your workspace, rewritten after every save.
+- **Ask your brain**: ranked search over everything it knows, with a ⌘K
+  command palette.
+- **Latest sessions**: every session digest on a timeline, click to read.
+- The topbar tells the truth: green `watching · saved 4m ago` while hooks
+  are live, amber `stale` when nothing has been saved for a day.
 
 ---
 
