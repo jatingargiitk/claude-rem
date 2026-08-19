@@ -63,6 +63,12 @@ believes git. Every fact traces back to a session digest and a commit.
 memory. Same job here: replay the session, verify it, consolidate what
 mattered, brief the next one.
 
+I built claude-rem because I run a 40-project workspace with sessions in
+parallel across Claude Code and Cursor, and I was the memory: every new
+session started ignorant and I re-taught it. Today my brain holds 100+
+compiled sessions across 24 projects and the rules my agents follow
+everywhere. This README was written by an agent running on it.
+
 ---
 
 ![claude-rem dashboard](https://jatingargiitk.github.io/claude-rem/assets/dashboard.png?v=2)
@@ -299,6 +305,22 @@ your disk. Your memory stays on your machine; that's the trade.
 **What if a harvest writes something wrong?**
 Every harvest is a git commit. Revert it.
 
+**Why not just write better commits and an AGENTS.md?**
+Do both; they compound. But an instruction file only works while the agent
+remembers to follow it, and instruction-following decays over a long
+session. Hooks fire deterministically at session end whether the agent
+remembers or not, and commits never capture the reasoning behind a change.
+
+**Doesn't the brain rot as sessions pile up?**
+No, because nothing piles up. The briefing is rewritten in place every
+harvest, and digests older than 30 days are consolidated into monthly
+rollups. The store stays roughly the same size while getting more accurate.
+
+**Will the agent ignore the brain and write its own memory files?**
+In Claude Code and Cursor it can't drift far: injection happens in hooks
+outside the model, so the briefing arrives whether the agent cooperates or
+not. It never depends on the model choosing to use a tool.
+
 **I use Cursor but not Claude Code, does it work?**
 Yes. Harvesting falls back to Cursor's `cursor-agent` CLI when `claude`
 isn't installed, so a Cursor-only machine gets the full loop.
@@ -313,14 +335,31 @@ subscription (or `cursor-agent` on Cursor-only machines).
 
 ## Roadmap
 
-More transcript readers (Gemini CLI and friends) · MCP server so non-hooked
-tools can pull from the brain · Windows.
+A shared team brain: what one engineer's sessions learn, every teammate's
+agent knows · More transcript readers (Gemini CLI and friends) · MCP server
+so non-hooked tools can pull from the brain · Windows.
+
+## Where This Is Going
+
+A commit shows what changed. It never shows what you tried and rejected,
+why you picked this approach, or the gotcha that cost two hours. That
+reasoning is the real operating knowledge of your work. It exists only in
+your sessions, and today it evaporates when they end.
+
+claude-rem is built on the bet that this knowledge, captured, verified,
+and compiled, becomes the layer your agents actually run on. First for
+you, across every tool. Next for teams: what one engineer's sessions
+learn, every teammate's agent knows, so repo conventions stop drifting and
+nobody's agent relearns a lesson someone already paid for. The end state
+is the operating memory of the AI-native company: fifty engineers' agents
+working from one compounding brain instead of fifty amnesiac ones.
+
+Today ships the first layer. It has to be excellent before the rest
+matters.
 
 ## Status
 
-v0.2.x, young and moving fast. I run it daily across a 40-project
-workspace; it's how this README knows what it's talking about. Issues and
-war stories welcome.
+v0.3.x, young and moving fast. Issues and war stories welcome.
 
 ## License
 
