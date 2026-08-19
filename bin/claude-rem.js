@@ -1340,14 +1340,18 @@ function cmdAb(args) {
 // per-category results, because the interesting finding is never "the brain is
 // good/bad" — it's "the brain helps on X and hurts on Y".
 
+// Seed questions target HISTORY — decisions, incidents, dead ends, unfinished
+// work — because that is what memory uniquely holds. Questions whose answers
+// are readable from the code (how do I X, where is Y defined) measure the
+// model's grep skills, not the brain: a strong agent ties or wins those blind.
 const EVAL_SEED = {
   questions: [
-    { q: 'The export file is not getting generated. Where do I start looking?', kind: 'debug' },
+    { q: 'The export file is not getting generated. Where do I start looking, and have we hit this before?', kind: 'debug' },
     { q: 'What version of this package is live, and is local ahead of it?', kind: 'status' },
-    { q: 'How do I release this project without the publish silently failing?', kind: 'procedure' },
-    { q: 'Where does the app get deployed, and what breaks if I deploy the obvious way?', kind: 'procedure' },
-    { q: 'What is still unfinished on the newest feature?', kind: 'status' },
-    { q: 'How should I add a new page to the app?', kind: 'architecture' },
+    { q: 'What went wrong the last time this project was released, and what do we do differently now?', kind: 'incident' },
+    { q: 'Where does the app get deployed, and what breaks if I deploy the obvious way?', kind: 'gotcha' },
+    { q: 'What is still unfinished on the newest feature, and what was tried and rejected?', kind: 'status' },
+    { q: 'Why is the architecture of this app the way it is - what alternatives were considered?', kind: 'decision' },
   ],
 };
 

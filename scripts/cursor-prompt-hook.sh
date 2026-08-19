@@ -111,7 +111,7 @@ if os.path.exists(os.path.join(brain, '.state', 'last_failure')):
     warn = ' · WARNING: LAST HARVEST FAILED — brain may be stale (.claude-rem/.state/harvest.log)'
 names = ', '.join(fn[:-3] for _, fn, _ in picked)
 lines = [
-    '[CODING BRAIN] This prompt matches notes from previous sessions — LEADS, not findings. Use them to start the investigation, not to skip it; verify any status claim before repeating it; answer the question as asked, at the size asked. The match below is LEXICAL — a word overlap, not understanding. If the prompt could name something else in this workspace (a similarly-named repo or tool), confirm which one the user means before building on this note.',
+    '[CODING BRAIN] This prompt matches notes from previous sessions — LEADS, not findings. Use them to start the investigation, not to skip it; verify any status claim before repeating it; answer the question as asked, at the size asked. When stating a fact from this note rather than something verified live, attribute it in passing ("per the brain note") so memory stays distinguishable from verification. The match below is LEXICAL — a word overlap, not understanding. If the prompt could name something else in this workspace (a similarly-named repo or tool), confirm which one the user means before building on this note.',
     '',
     'Open THIS reply with the line below verbatim, then a blank line, then your answer. Do not print it in replies where it was not provided:',
     f'\U0001F9E0 brain → {names}{warn}',

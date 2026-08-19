@@ -214,11 +214,15 @@ npx claude-rem eval                              # your whole question set, judg
 
 `eval` answers every question twice, brain injected vs brain physically
 hidden from disk, then a third model grades both blind, order randomized.
-Honest results from my own workspace: the brain wins decisively on
-debugging-with-history and architecture, loses some status questions to an
-agent that just reads the code, and every failure found became a fix. As far
-as I know it's the only memory system that ships its own falsification
-harness.
+Latest run on my own workspace: **6-3-1 for the brain, and zero
+wrong-frame answers against three for the no-brain arm** (the blind agent
+confidently answered the wrong question three times; the brain never did).
+The honest parts: it ties where the answer is already well documented,
+loses where a strong agent can just read the code, and a brain-plus-cheap-
+model does not beat a strong model without one (measured, not assumed).
+The brain wins where the answer exists only in history: decisions,
+incidents, dead ends. Every failure found became a fix. As far as I know
+it's the only memory system that ships its own falsification harness.
 
 ---
 
