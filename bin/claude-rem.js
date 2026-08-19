@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
 const path = require('path');
 const readline = require('readline');
 const { spawnSync, spawn } = require('child_process');
@@ -1359,10 +1360,25 @@ function hideBrains(workspace, brain) {
     path.join(workspace, '.cursor', 'brain'),
     path.join(workspace, '.claude', 'brain')];
   const hidden = [];
+  // Stash OUTSIDE the workspace: an in-place rename with a guessable suffix
+  // is findable by the blind arm (`ls` shows it, Read(workspace/**) allows
+  // it) — measured once: a "blind" answer cited the renamed notes. Probes
+  // only allow Read under the workspace, so an out-of-tree stash is dark.
+  let stash = null;
+  try {
+    stash = fs.mkdtempSync(path.join(os.tmpdir(), 'rem-eval-'));
+  } catch { /* fall back to sibling rename below */ }
   for (const t of targets) {
     if (!t || !fs.existsSync(t)) continue;
-    const away = t + '.eval-hidden-' + process.pid;
-    fs.renameSync(t, away);
+    let away = stash ? path.join(stash, path.basename(t) + '-' + hidden.length) : null;
+    try {
+      if (!away) throw new Error('no stash');
+      fs.renameSync(t, away);
+    } catch {
+      // Cross-device or no stash: sibling rename with a non-guessable name.
+      away = path.join(path.dirname(t), '.' + crypto.randomBytes(8).toString('hex'));
+      fs.renameSync(t, away);
+    }
     hidden.push([t, away]);
   }
   return hidden;
