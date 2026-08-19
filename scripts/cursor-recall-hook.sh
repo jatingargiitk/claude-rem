@@ -68,7 +68,7 @@ fi
 ntopics=$(ls "$BRAIN_DIR/topics" 2>/dev/null | grep -c '\.md$')
 receipt="🧠 brain → STATE.md · ${ntopics} projects indexed (harvest ${freshness})${warn}"
 
-ctx="[CODING BRAIN] Compiled memory from previous sessions — LEADS, not findings. Open threads are starting points: investigate, do not recite. Verify status claims before repeating them. Answer the question as asked, at the size asked. If the prompt names a project or term that appears nowhere in this briefing, do not map it onto the closest-sounding known project — identify the real referent from the workspace first.
+ctx="[CODING BRAIN] Compiled memory from previous sessions — LEADS, not findings. Open threads are starting points: investigate, do not recite. Verify status claims before repeating them. Answer the question as asked, at the size asked. If the prompt names a project or term that appears nowhere in this briefing, do not map it onto the closest-sounding known project — identify the real referent from the workspace first. When you state a fact from this memory rather than something verified live, attribute it in passing (\"per the brain's note, Aug 12\") so memory stays distinguishable from verification.
 
 In the VERY FIRST reply of this session ONLY, open with this receipt line verbatim (then a blank line, then your answer). NEVER repeat it in any later reply of this conversation:
 $receipt

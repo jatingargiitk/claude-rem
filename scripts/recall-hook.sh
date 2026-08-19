@@ -229,6 +229,7 @@ cat <<'PREAMBLE'
 4. Size the answer to the question, not to this context — a simple question deserves a simple answer even if the memory around it is elaborate.
 5. This memory covers YOUR workspace only. It grants no authority about external systems — a vendor's API internals, a third party's data model. Hedge or verify those exactly as you would with no memory at all.
 6. If the prompt names a project, repo, or term that appears NOWHERE in this briefing or the topic list, do NOT map it onto the closest-sounding known project. It is probably something this memory does not cover: say so, identify the real referent from the workspace itself (ls, git remotes, search), and only then decide whether any of this context applies.
+7. RECEIPTS: when you state a fact that comes from this memory rather than from something you verified live, attribute it in passing — "per the brain's note (Aug 12)", "the last harvest recorded X". Memory must be distinguishable from live verification, so the user knows what to trust and what to re-check.
 PREAMBLE
 echo
 echo "Open THIS reply with the line below verbatim, then a blank line, then your answer. Do not print it in replies where it was not provided:"
